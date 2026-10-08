@@ -1,0 +1,4 @@
+interface:
+  display_name: "FilmCraft"
+  short_description: "Edit FilmCraft projects and automate video workflows"
+  default_prompt: "Use $filmcraft to edit my FilmCraft project and verify the result."
