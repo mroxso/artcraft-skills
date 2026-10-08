@@ -12,6 +12,7 @@ npx skills add mroxso/artcraft-skills --skill filmcraft
 npx skills add mroxso/artcraft-skills --skill vectorcraft
 npx skills add mroxso/artcraft-skills --skill lightcraft
 npx skills add mroxso/artcraft-skills --skill effectcraft
+npx skills add mroxso/artcraft-skills --skill designcraft
 ```
 
 For a global Codex installation:
@@ -22,6 +23,7 @@ npx skills add mroxso/artcraft-skills --skill filmcraft --agent codex --global
 npx skills add mroxso/artcraft-skills --skill vectorcraft --agent codex --global
 npx skills add mroxso/artcraft-skills --skill lightcraft --agent codex --global
 npx skills add mroxso/artcraft-skills --skill effectcraft --agent codex --global
+npx skills add mroxso/artcraft-skills --skill designcraft --agent codex --global
 ```
 
 ## Available skills
@@ -34,6 +36,8 @@ npx skills add mroxso/artcraft-skills --skill effectcraft --agent codex --global
 | [lightcraft](artcraft/lightcraft/SKILL.md) | [LightCraft](https://github.com/storytold/lightcraft) | Photo organization, development, cropping, rendering, and export through desktop control, MCP, or headless CLI. |
 | [effectcraft](artcraft/effectcraft/SKILL.md) | [EffectCraft](https://github.com/storytold/effectcraft) | Compositing, animation, layers, masks, effects, and rendering through desktop control, MCP, or headless CLI. |
 
+| [designcraft](artcraft/designcraft/SKILL.md) | [DesignCraft](https://github.com/storytold/designcraft) | Page layouts, text frames, styles, image placement, and data merge through desktop control, MCP, or CLI. |
+
 Use `$photocraft` in Codex, or ask your agent to work in PhotoCraft. The skill covers session selection, command discovery, layers and selections, file access, background jobs, previews, and export verification.
 
 Use `$filmcraft` in Codex, or ask your agent to work in FilmCraft. The skill covers session selection, command discovery, linked timeline edits, audio and color workflows, project saving, and export verification.
@@ -44,12 +48,20 @@ Use `$lightcraft` in Codex, or ask your agent to work in LightCraft. The skill c
 
 Use `$effectcraft` in Codex, or ask your agent to work in EffectCraft. The skill covers session selection, command discovery, composition and property targeting, animation, UI interaction, project saving, and export verification.
 
+Use `$designcraft` in Codex, or ask your agent to work in DesignCraft. The skill covers live and headless sessions, command discovery, spread coordinates, story targeting, data merge, previews, and save/export verification.
+
 The skills provide instructions; they do not install the applications or configure MCP servers. An executable or connected automation session for the chosen application is required.
 
 ## Repository layout
 
 ```text
 artcraft/
+├── designcraft/
+│   ├── SKILL.md
+│   ├── agents/openai.yaml
+│   └── references/
+│       ├── control-protocol.md
+│       └── LICENSE-MIT
 ├── effectcraft/
 │   ├── SKILL.md
 │   ├── agents/openai.yaml
@@ -95,5 +107,7 @@ The bundled [VectorCraft control protocol](artcraft/vectorcraft/references/contr
 The bundled [LightCraft control protocol](artcraft/lightcraft/references/control-protocol.md) is an unmodified snapshot downloaded on 2026-10-08 from its [upstream source](https://raw.githubusercontent.com/storytold/lightcraft/refs/heads/main/docs/control-protocol.md). It is copyright © 2026 ArtCraft Team and the LightCraft contributors, distributed under the upstream MIT license reproduced in [LightCraft references/LICENSE-MIT](artcraft/lightcraft/references/LICENSE-MIT). Relative documentation links resolve against the [LightCraft upstream docs directory](https://github.com/storytold/lightcraft/tree/main/docs).
 
 The bundled [EffectCraft control protocol](artcraft/effectcraft/references/control-protocol.md) is an unmodified snapshot downloaded on 2026-10-08 from its [upstream source](https://raw.githubusercontent.com/storytold/effectcraft/refs/heads/main/docs/control-protocol.md). It is copyright © 2026 ArtCraft Team and the EffectCraft contributors, distributed under the upstream MIT license reproduced in [EffectCraft references/LICENSE-MIT](artcraft/effectcraft/references/LICENSE-MIT). Relative documentation links resolve against the [EffectCraft upstream docs directory](https://github.com/storytold/effectcraft/tree/main/docs).
+
+The bundled [DesignCraft control protocol](artcraft/designcraft/references/control-protocol.md) is an unmodified snapshot downloaded on 2026-10-08 from its [upstream source](https://raw.githubusercontent.com/storytold/designcraft/refs/heads/main/docs/control-protocol.md). It is copyright © 2026 ArtCraft Team and the DesignCraft contributors, distributed under the upstream MIT license reproduced in [DesignCraft references/LICENSE-MIT](artcraft/designcraft/references/LICENSE-MIT). Relative documentation links resolve against the [DesignCraft upstream docs directory](https://github.com/storytold/designcraft/tree/main/docs).
 
 The original skill instructions and repository documentation are available under the [MIT license](LICENSE).
