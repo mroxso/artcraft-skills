@@ -13,6 +13,7 @@ npx skills add mroxso/artcraft-skills --skill vectorcraft
 npx skills add mroxso/artcraft-skills --skill lightcraft
 npx skills add mroxso/artcraft-skills --skill effectcraft
 npx skills add mroxso/artcraft-skills --skill designcraft
+npx skills add mroxso/artcraft-skills --skill cadcraft
 ```
 
 For a global Codex installation:
@@ -24,6 +25,7 @@ npx skills add mroxso/artcraft-skills --skill vectorcraft --agent codex --global
 npx skills add mroxso/artcraft-skills --skill lightcraft --agent codex --global
 npx skills add mroxso/artcraft-skills --skill effectcraft --agent codex --global
 npx skills add mroxso/artcraft-skills --skill designcraft --agent codex --global
+npx skills add mroxso/artcraft-skills --skill cadcraft --agent codex --global
 ```
 
 ## Available skills
@@ -35,8 +37,8 @@ npx skills add mroxso/artcraft-skills --skill designcraft --agent codex --global
 | [vectorcraft](artcraft/vectorcraft/SKILL.md) | [VectorCraft](https://github.com/storytold/vectorcraft) | Vector artwork, paths, text, artboards, and live effects through desktop control, MCP, or headless CLI. |
 | [lightcraft](artcraft/lightcraft/SKILL.md) | [LightCraft](https://github.com/storytold/lightcraft) | Photo organization, development, cropping, rendering, and export through desktop control, MCP, or headless CLI. |
 | [effectcraft](artcraft/effectcraft/SKILL.md) | [EffectCraft](https://github.com/storytold/effectcraft) | Compositing, animation, layers, masks, effects, and rendering through desktop control, MCP, or headless CLI. |
-
 | [designcraft](artcraft/designcraft/SKILL.md) | [DesignCraft](https://github.com/storytold/designcraft) | Page layouts, text frames, styles, image placement, and data merge through desktop control, MCP, or CLI. |
+| [cadcraft](artcraft/cadcraft/SKILL.md) | [CADCraft](https://github.com/storytold/cadcraft) | CAD drawing, entity, layer, and layout editing through command-line input, desktop control, MCP, or headless CLI. |
 
 Use `$photocraft` in Codex, or ask your agent to work in PhotoCraft. The skill covers session selection, command discovery, layers and selections, file access, background jobs, previews, and export verification.
 
@@ -109,5 +111,7 @@ The bundled [LightCraft control protocol](artcraft/lightcraft/references/control
 The bundled [EffectCraft control protocol](artcraft/effectcraft/references/control-protocol.md) is an unmodified snapshot downloaded on 2026-10-08 from its [upstream source](https://raw.githubusercontent.com/storytold/effectcraft/refs/heads/main/docs/control-protocol.md). It is copyright © 2026 ArtCraft Team and the EffectCraft contributors, distributed under the upstream MIT license reproduced in [EffectCraft references/LICENSE-MIT](artcraft/effectcraft/references/LICENSE-MIT). Relative documentation links resolve against the [EffectCraft upstream docs directory](https://github.com/storytold/effectcraft/tree/main/docs).
 
 The bundled [DesignCraft control protocol](artcraft/designcraft/references/control-protocol.md) is an unmodified snapshot downloaded on 2026-10-08 from its [upstream source](https://raw.githubusercontent.com/storytold/designcraft/refs/heads/main/docs/control-protocol.md). It is copyright © 2026 ArtCraft Team and the DesignCraft contributors, distributed under the upstream MIT license reproduced in [DesignCraft references/LICENSE-MIT](artcraft/designcraft/references/LICENSE-MIT). Relative documentation links resolve against the [DesignCraft upstream docs directory](https://github.com/storytold/designcraft/tree/main/docs).
+
+The bundled [CADCraft control protocol](artcraft/cadcraft/references/control-protocol.md) is an unmodified snapshot downloaded on 2026-10-12 from its [upstream source](https://raw.githubusercontent.com/storytold/cadcraft/refs/heads/main/docs/control-protocol.md). It is copyright © 2026 ArtCraft Team and the CADCraft contributors, distributed under the upstream MIT license reproduced in [CADCraft references/LICENSE-MIT](artcraft/cadcraft/references/LICENSE-MIT). Relative documentation links resolve against the [CADCraft upstream docs directory](https://github.com/storytold/cadcraft/tree/main/docs).
 
 The original skill instructions and repository documentation are available under the [MIT license](LICENSE).
