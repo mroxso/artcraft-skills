@@ -14,6 +14,7 @@ npx skills add mroxso/artcraft-skills --skill lightcraft
 npx skills add mroxso/artcraft-skills --skill effectcraft
 npx skills add mroxso/artcraft-skills --skill designcraft
 npx skills add mroxso/artcraft-skills --skill cadcraft
+npx skills add mroxso/artcraft-skills --skill deckcraft
 ```
 
 For a global Codex installation:
@@ -26,6 +27,7 @@ npx skills add mroxso/artcraft-skills --skill lightcraft --agent codex --global
 npx skills add mroxso/artcraft-skills --skill effectcraft --agent codex --global
 npx skills add mroxso/artcraft-skills --skill designcraft --agent codex --global
 npx skills add mroxso/artcraft-skills --skill cadcraft --agent codex --global
+npx skills add mroxso/artcraft-skills --skill deckcraft --agent codex --global
 ```
 
 ## Available skills
@@ -39,6 +41,7 @@ npx skills add mroxso/artcraft-skills --skill cadcraft --agent codex --global
 | [effectcraft](artcraft/effectcraft/SKILL.md) | [EffectCraft](https://github.com/storytold/effectcraft) | Compositing, animation, layers, masks, effects, and rendering through desktop control, MCP, or headless CLI. |
 | [designcraft](artcraft/designcraft/SKILL.md) | [DesignCraft](https://github.com/storytold/designcraft) | Page layouts, text frames, styles, image placement, and data merge through desktop control, MCP, or CLI. |
 | [cadcraft](artcraft/cadcraft/SKILL.md) | [CADCraft](https://github.com/storytold/cadcraft) | CAD drawing, entity, layer, and layout editing through command-line input, desktop control, MCP, or headless CLI. |
+| [deckcraft](artcraft/deckcraft/SKILL.md) | [DeckCraft](https://github.com/storytold/deckcraft) | Presentations, slides, shapes, text, charts, and slide shows through desktop control, MCP, or headless CLI. |
 
 Use `$photocraft` in Codex, or ask your agent to work in PhotoCraft. The skill covers session selection, command discovery, layers and selections, file access, background jobs, previews, and export verification.
 
@@ -52,12 +55,20 @@ Use `$effectcraft` in Codex, or ask your agent to work in EffectCraft. The skill
 
 Use `$designcraft` in Codex, or ask your agent to work in DesignCraft. The skill covers live and headless sessions, command discovery, spread coordinates, story targeting, data merge, previews, and save/export verification.
 
+Use `$deckcraft` in Codex, or ask your agent to work in DeckCraft. The skill covers live and headless sessions, command discovery, slide and shape targeting, slide shows, previews, and save/export verification.
+
 The skills provide instructions; they do not install the applications or configure MCP servers. An executable or connected automation session for the chosen application is required.
 
 ## Repository layout
 
 ```text
 artcraft/
+├── deckcraft/
+│   ├── SKILL.md
+│   ├── agents/openai.yaml
+│   └── references/
+│       ├── control-protocol.md
+│       └── LICENSE-MIT
 ├── designcraft/
 │   ├── SKILL.md
 │   ├── agents/openai.yaml
@@ -113,5 +124,7 @@ The bundled [EffectCraft control protocol](artcraft/effectcraft/references/contr
 The bundled [DesignCraft control protocol](artcraft/designcraft/references/control-protocol.md) is an unmodified snapshot downloaded on 2026-10-08 from its [upstream source](https://raw.githubusercontent.com/storytold/designcraft/refs/heads/main/docs/control-protocol.md). It is copyright © 2026 ArtCraft Team and the DesignCraft contributors, distributed under the upstream MIT license reproduced in [DesignCraft references/LICENSE-MIT](artcraft/designcraft/references/LICENSE-MIT). Relative documentation links resolve against the [DesignCraft upstream docs directory](https://github.com/storytold/designcraft/tree/main/docs).
 
 The bundled [CADCraft control protocol](artcraft/cadcraft/references/control-protocol.md) is an unmodified snapshot downloaded on 2026-10-12 from its [upstream source](https://raw.githubusercontent.com/storytold/cadcraft/refs/heads/main/docs/control-protocol.md). It is copyright © 2026 ArtCraft Team and the CADCraft contributors, distributed under the upstream MIT license reproduced in [CADCraft references/LICENSE-MIT](artcraft/cadcraft/references/LICENSE-MIT). Relative documentation links resolve against the [CADCraft upstream docs directory](https://github.com/storytold/cadcraft/tree/main/docs).
+
+The bundled [DeckCraft control protocol](artcraft/deckcraft/references/control-protocol.md) is an unmodified snapshot downloaded on 2026-10-14 from its [upstream source](https://raw.githubusercontent.com/storytold/deckcraft/refs/heads/main/docs/control-protocol.md). It is copyright © 2026 ArtCraft Team and the DeckCraft contributors, distributed under the upstream MIT license reproduced in [DeckCraft references/LICENSE-MIT](artcraft/deckcraft/references/LICENSE-MIT). Relative documentation links resolve against the [DeckCraft upstream docs directory](https://github.com/storytold/deckcraft/tree/main/docs).
 
 The original skill instructions and repository documentation are available under the [MIT license](LICENSE).
