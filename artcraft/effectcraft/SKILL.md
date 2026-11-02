@@ -9,7 +9,7 @@ Operate EffectCraft through its structured automation interfaces, using the user
 
 ## References
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing desktop calls. This is an unmodified snapshot downloaded on 2026-10-08 from the [upstream control protocol](https://raw.githubusercontent.com/storytold/effectcraft/refs/heads/main/docs/control-protocol.md). The upstream MIT license is included in [references/LICENSE-MIT](references/LICENSE-MIT).
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing desktop calls. This is an unmodified snapshot downloaded on 2026-11-02 from the [upstream control protocol](https://raw.githubusercontent.com/storytold/effectcraft/refs/heads/main/docs/control-protocol.md). The upstream MIT license is included in [references/LICENSE-MIT](references/LICENSE-MIT).
 
 Search the reference for `Engine`, `UI state`, `Input`, `Locating things`, or `Screenshots`. Relative documentation links resolve against `https://github.com/storytold/effectcraft/blob/main/docs/`.
 

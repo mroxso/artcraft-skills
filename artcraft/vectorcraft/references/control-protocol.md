@@ -1,7 +1,20 @@
 # Control protocol
 
-`vectorcraft --control <port>` listens on `127.0.0.1:<port>` (loopback only). One JSON request per line:
+> **Last updated:** 2026-10-31 · **Change:** Confining file access refuses a `:` in a name after the drive on Windows, an NTFS alternate data stream such as `x.svg:evil` (#3604); previously: Object → Expand… dimmed while the selection has an appearance Expand Appearance expands (`object.expand.info`'s `appearance`, #3089); previously: brush library panels (`window.brushLibrary`, `window.brushLibrary.other`, `ui.saveBrushLibrary`); previously: Transform Each opens on the values it was last confirmed with; its Copy button confirms with `copy: true` (#1732); previously: panel docking on craft-ui's layout: `ui.docking`, the parameters of `window.panel.float` and `window.panel.dock`; previously: `ui.screenshot`'s 64 MiB inline-PNG cap and its path-plus-data downgrade; symbol library panels (`window.symbolLibrary`, `window.symbolLibrary.other`, `ui.saveSymbolLibrary`); synthetic input budgets (#1709); bounded transport waits (#1726).
+
+`vectorcraft --control <port>` listens on `127.0.0.1:<port>` (loopback only). The port must be a number
+from 1 to 65535 (`--control=<port>` works too), given once; otherwise the app prints an error and exits
+before it starts. One JSON request per line:
 `{"id": 1, "method": "ui.inspect", "params": {}}` → `{"id": 1, "ok": true, "result": {...}}` or `{"id":1,"ok":false,"error":"..."}`.
+
+Set `VECTORCRAFT_CONFIG_DIR` to a dedicated directory for an isolated native test profile. Preferences,
+logs, recovery and user libraries then use that root, without importing the legacy DrawCraft profile.
+An unset override preserves the usual platform paths and legacy migration; an explicitly empty override
+disables those paths. `VECTORCRAFT_NO_PREFS` continues to disable preference reads and writes.
+Without the override, a `portable.txt` or `VectorCraft.portable` file beside the executable (as in the
+Windows portable zip) puts that root in `VectorCraftData` next to the executable; on macOS the marker
+and the folder sit next to `VectorCraft.app`, for an AppImage next to the `.AppImage` file, and a
+Flatpak install has neither. `VECTORCRAFT_NO_PREFS` never looks for the marker or creates the folder.
 
 **Only requests are read.** Every line must be a JSON object with a string `method` (`id` and `params`
 are optional; blank lines are skipped). Anything else gets one error reply
@@ -11,42 +24,107 @@ an object without `method`, invalid UTF-8, and a line longer than 4 MiB. An HTTP
 web page's cross-origin `fetch` to `127.0.0.1:<port>`) therefore can't smuggle a command in its body:
 its request line is rejected first. At most 16 connections are served at once; further ones get an error
 line and are closed. Clients that get an error reply should reconnect. The port has no authentication,
-so only enable it while you use it. Transport: `apps/vectorcraft/src/control_server.rs`.
+so only enable it while you use it. Idle clients have 5 minutes to start their next line; once the
+first byte arrives, the complete line must arrive within an absolute 30 seconds (trickled bytes do not
+renew it). A reply has 60 seconds to be written. Expiration closes the connection and returns its slot
+(an idle connection is closed without a line, so nothing waits where the next reply would be; a line
+that stalls gets the usual error line first);
+persistent clients can send further requests within these bounds, or reconnect after idle expiration.
+These transport budgets are separate from the existing 60-second command-processing wait.
+Transport: `apps/vectorcraft/src/control_server.rs`.
+
+## Synthetic input budgets
+
+`ui.drag` accepts at most **256** `steps`; `ui.click` and `ui.drag` accept at most **16** `count`.
+They must be non-negative JSON integers. Omitted values keep their defaults (8 steps, one click);
+explicit zero still acts as one, as before. Oversized or malformed values return an error before
+any move, press or release is queued.
+
+All synthetic methods (`ui.key`, `ui.text`, `ui.move`, `ui.click`, `ui.drag`, `ui.wheel`) share a
+**1,024-event** pending-queue limit. The whole request must fit; rejection preserves existing input
+and does not append a partial gesture. Clients can retry once earlier input has drained. At most
+**64 control requests** run per frame; later requests remain on the channel and another frame is
+scheduled. These limits cover synthetic input admission, separately from socket transport and
+command-processing timeouts.
+
+A request the app hasn't answered after **60 s** gets `{"ok": false, "error": "timeout: …"}`. If the
+app had not started it (it was busy, or its window wasn't being drawn), the request is withdrawn
+and never runs, and the error says "will not run": retrying is safe. If the app was already
+running it, the error says "still running": it may yet complete, so check the document before
+retrying. On macOS the app keeps itself out of App Nap while the control channel is on, so it keeps
+answering with its window hidden, minimized or covered, or with the screen locked.
+
+## Confining file access
+
+```sh
+vectorcraft --control 7979 --automation-read-root /work/project --automation-write-root /work/project/out
+```
+
+`--automation-read-root <dir>` and `--automation-write-root <dir>` (or `VECTORCRAFT_AUTOMATION_READ_ROOT` /
+`VECTORCRAFT_AUTOMATION_WRITE_ROOT`; `--flag=<dir>` works too) confine what the control channel reads and
+writes, with the same flags as `vectorcraft-cli mcp` and the other Craft apps. Every path a request reads
+(open, place, relink, library and profile loads, plug-ins…) must lie inside a read root, every path it
+writes (save, export, package, captures, library saves…) inside a write root; anything else is an
+ordinary error reply. Paths are made absolute against the app's working directory, links are followed
+(for a file that doesn't exist yet, its folder's), and the comparison is by whole folder names (`/work2` is
+not inside `/work`), ignoring case on Windows; `..` below a folder that doesn't exist, a link that leads
+nowhere, Windows device names and, on Windows, a `:` in any name after the drive (an NTFS alternate data stream such as `x.svg:evil`) are refused. A root left out grants none of its access. The roots must be
+existing folders, or the app doesn't start; without `--control` they are ignored. See `docs/mcp.md`
+› Confining file access for the details.
+
+Each root flag may be given more than once, a path inside any of its folders being allowed (#3546); the
+command line's folders of a kind replace its environment default. Missing or empty values and another
+option used as a value stop the desktop before it starts any services, even without `--control`. For a folder name starting with `-`, use `--flag=-folder`
+or the relative path `./-folder`.
+
+What is confined: the requests themselves, the frames that carry input they inject (`ui.click`, `ui.key`,
+`ui.text`…, so a menu item an agent clicks is confined too), the background saves and exports they start,
+and window captures. The person at the keyboard is not: files opened from the command line, Finder or a
+file dialog, and everything done with the mouse and keyboard, work as usual. The preferences that move
+folders the app reads or writes on its own (Additional Fonts Folder, Additional Plug-ins Folder, Data
+Recovery's folder, the Templates folder) can only be pointed inside the roots by automation. The app's own folders
+(preferences, Data Recovery, the library folders, VectorCraft's Fonts folder) are not confined, since no
+agent names a path there. A path is checked, then opened: another program that swaps in a link between
+the two can still win that race.
 
 | Method | Params | |
 |---|---|---|
-| `engine.execute` | `{command, params}` | run any engine or UI command (see `engine.commands`) |
+| `engine.execute` | `{command, params}` | run any engine or UI command (see `engine.commands`). A key of `params` that the command's params description doesn't name is an error naming it and the nearest key the command takes, before anything runs (`unknown parameter `widht`; did you mean `width`?`); see [Parameter keys](mcp.md#parameter-keys) |
 | `engine.commands` | | every command with label, shortcut, params doc, enablement |
-| `document.inspect` | `{depth?, childLimit?}` | layer tree, selection, history, paint defaults; the options slice the layer tree as `document.node {summary: true}` does |
-| `ui.inspect` | | tool, UI state, `screenMode` (0 normal, 1 full screen with menu bar, 2 full screen, 3 Presentation Mode), view, canvas rect, window size, perf, background saves and exports still running |
+| `document.inspect` | `{depth?, childLimit?, ids?, kind?, limit?, offset?}` | layer tree, selection, the key object (`key`, null without one; a key ruler guide as `keyGuide`), history, paint defaults; `depth` / `childLimit` slice the layer tree as `document.node {summary: true}` does; `ids`, `kind`, `limit` and `offset` list just some nodes as `nodes` (with `total`) instead of the whole tree, see [mcp.md](mcp.md). Each node reports `opacity` below 1 and `blend` when it isn't Normal; objects and compound paths report `fill`, `stroke` and `strokeWidth`, a compound path's members `compoundMember: true` instead |
+| `ui.inspect` | | tool, UI state, `screenMode` (0 normal, 1 full screen with menu bar, 2 full screen, 3 Presentation Mode), `taskBar` (`pinned`, and `rect` `[x, y, w, h]` while the Contextual Task Bar shows), `freeTransformWidget` (`[x, y, w, h]` while the Free Transform widget shows), view, canvas rect, window size, perf, background saves and exports still running, `nativeMenuBar` (true when the menus are in the macOS menu bar rather than the window; `ui.menu.list` lists the in-window menus either way), `fileDialog` (`"open"`, `"place"`, `"save"` or `"folder"` while a native file dialog is open, `null` otherwise; see below) |
 | `ui.menu.list` / `ui.menu.invoke` | `{command, params}` | the full menu tree / invoke an item |
-| `ui.contextMenu.list` | | the canvas context menu for the current selection, flattened like `ui.menu.list` (`path` holds its submenus). `ui.click {x, y, button: "right"}` on the canvas opens it, after selecting the object there unless it is already selected |
+| `ui.contextMenu.list` | | the canvas context menu for the current selection, flattened like `ui.menu.list` (`path` holds its submenus). `ui.click {x, y, button: "right"}` on the canvas opens it, after selecting the object there unless it is already selected. While a menu opened over locked objects is open, it has an `Unlock` submenu with one item for each locked object under the pointer, topmost first and at most 20, labeled with the object's name, which runs `layer.setProps {ids: [id], locked: false}`. A locked group gets one item, and the locked objects inside it get none. Hidden objects, objects on hidden, locked or template layers, and in isolation mode objects outside the isolated group get no item |
 | `ui.tool.select` / `ui.tool.list` | `{tool}` | |
-| `ui.pointer` | `{events:[{kind: down|drag|up|move|doubleclick, x, y, space?: "doc"|"screen", mods?}]}` | drive the active tool exactly like the mouse |
+| `ui.pointer` | `{events:[{kind: down|drag|up|move|doubleclick, x, y, space?: "doc"|"screen", mods?}]}` | drive the active tool exactly like the mouse: `mods.cmd` held at a press with any tool but a selection tool drags with the selection tool chosen last (Direct Selection with the Pen until one is), and the release gives the tool back as it was; the reply lists `selection`, `key` (the key object, null without one) and `tool`. With the Shape Builder or the Live Paint Bucket and a selection of more than 128 segments, the app finds the regions off the UI thread, so a `move` replies before the region under the pointer is highlighted, and the highlight shows in the first frame after the regions are found |
 | `ui.key` / `ui.text` | `{key, shift?, alt?, cmd?}` / `{text}` | synthetic keyboard input |
-| `ui.wheel` | `{x, y, dy?, dx?, unit?: "line"\|"point", shift?, alt?, cmd?}` | a mouse wheel turn over screen point (x, y): `dy` notches up (+) or down, `dx` sideways. Over the canvas the wheel scrolls and Cmd- or Alt-wheel (Option on the Mac) zooms about the pointer; with the `zoomWithMouseWheel` preference the wheel and Alt-wheel zoom about the pointer, Shift-wheel scrolls up and down and Cmd-wheel (Ctrl on Windows and Linux) sideways |
-| `ui.set` | `{brightness?, panel?, rulers?, outline?, grid?, smartGuides?, boundingBox?, controlBar?}` | |
-| `ui.dialog.set` / `.confirm` / `.cancel` | `{field, value}` | fill and submit the open dialog |
-| `ui.screenshot` | `{path?}` | capture the window (PNG). Needs a presented frame: with the screen locked or the window minimized/covered it fails after ~8 s with an explanatory error |
-| `ui.render` | `{path?, scale?}` | render the artboard headlessly (PNG) |
+| `ui.move` | `{x, y}` | screen-point pointer move |
+| `ui.click` / `ui.drag` | `{x, y, button?, count?, shift?, alt?, ctrl?, cmd?}` / `{x, y, toX, toY, steps?, count?, button?, shift?, alt?, ctrl?, cmd?}` | egui pointer input; see synthetic input budgets above |
+| `ui.wheel` | `{x, y, dy?, dx?, unit?: "line"\|"point", shift?, alt?, cmd?}` | a mouse wheel turn over screen point (x, y): `dy` notches up (+) or down, `dx` sideways. Over the canvas the wheel scrolls and Cmd- or Alt-wheel (Option on the Mac) zooms about the pointer; with the `zoomWithMouseWheel` preference the wheel and Alt-wheel zoom about the pointer, Shift-wheel scrolls up and down and Cmd-wheel (Ctrl on Windows and Linux) sideways. Over a focused numeric field (click it first) each notch steps its value as Up/Down do (Shift: ten, Cmd/Ctrl: a tenth) and the panel stays put; over anything else in a panel the wheel scrolls it |
+| `ui.set` | `{brightness?, panel?, rulers?, outline?, grid?, smartGuides?, boundingBox?, controlBar?, imageTracePreview?}` | `outline`: View › Outline for the active document only (each document has its own, a document opens in Preview, and `ui.inspect` shows it as `view.outline`; an error without a document). `imageTracePreview`: the Image Trace panel's Preview (`ui.inspect` shows it as `ui.image_trace_preview`) |
+| `ui.dialog.set` / `.confirm` / `.cancel` | `{field, value}` or `{fields: [{field, value}…]}` | fill and submit the open dialog. `ui.dialog.set` takes the fields the dialog has (`ui.inspect`), `__` fields, `discard` on a dialog with a discard button, `preview` on one with a live preview, the fields that the dialog reads but adds only when a control changes (such as `searchFolder`, or `copy` in the Transform dialogs), and the fields it passes to the command it runs: every parameter of the `command` dialog's command (`ui.paramDialog`), and the `textureImage` that Load Texture… sets in the Glass and Texturizer effects; any other field is an error that lists the dialog's fields, and the dialog stays as it was `fields` sets the list (at most 256 items) in order (a missing `value` is `null`) and checks every item first: when one is refused, the call is an error and no field changes |
+| `ui.screenshot` | `{path?, data?}` | capture the window (PNG), written to `path`; `data: true` sends it back as `pngBase64` too. The inline PNG is capped at 64 MiB: with a `path` the file is still written and `pngBase64` is omitted when the image is larger, while a path-less `data: true` request fails if either the raw RGBA image or the encoded PNG exceeds the cap. Needs a presented frame: with the screen locked or the window minimized/covered it fails after ~8 s with an explanatory error |
+| `ui.render` | `{path?, scale?, artboard?, data?, traceViews?}` | render an artboard headlessly (PNG with the pixels of `app.export {format: "png", background: "white"}` at the same scale; `artboard`: its 0-based index, default the first; `traceViews: true`: Image Trace objects draw in their View, as on the canvas, instead of their tracing result): written to `path`, else (or with `data: true` as well) sent back as `pngBase64` |
+| `ui.render` | `{path?, scale?, artboard?, data?}` | render an artboard headlessly (PNG with the pixels of `app.export {format: "png", background: "white"}` at the same scale; `artboard`: its 0-based index, default the first): written to `path`, else (or with `data: true` as well) sent back as `pngBase64` |
 | `ui.resize` / `ui.focus` | | |
 | `app.open` / `app.save` / `app.export` / `app.quit` | `{path}` / `{path?}` / `{path?, format?, artboard?, range?, scale?, …}` | `app.open` reads every format `document.open` reads (see `document.formats`) and returns its result (`{index, title, format, warnings, …}`; `warnings` say what didn't come in as it was, such as an EPS shown as its preview image and why its PostScript couldn't be read), or null when a dialog asks first or a library loads. `app.export` encodes through the engine's `document.export` (same options; the document keeps its path) and writes `path` through the host; without `path` it returns `{dataBase64, format, bytes}`, as headless mode does. `app.quit`, `file.close` and `file.closeAll` first open a `saveChanges` dialog for each modified document (they return `{"pending": "saveChanges"}`): `ui.dialog.confirm` saves, `ui.dialog.set {field: "discard", value: true}` then confirm discards, `ui.dialog.cancel` cancels the whole close or quit |
 | `app.export` with `useArtboards` | `{path, useArtboards: true, range? \| artboards?, …}` | Export As: PNG, JPEG and WebP write one file per chosen artboard (default all; SVG does so for a `range`), `<path stem>-<artboard>.<ext>`, and return `{path, files: [path…]}`; a PDF keeps them as pages of `path`. `useArtboards: false` covers the bounds of the visible art. The menu's Export As… is `file.exportAs`: the `exportAs` dialog (`format`, `useArtboards`, `all`, `range`), then a save dialog and the format's options: `pngOptions` / `jpgOptions` / `webpOptions`, `svgOptions`, or `savePdf` for a PDF with Use Artboards |
 | `ui.dialog.*` on `gradientStop` | `{field: "color" \| "opacity" \| "location", value}` | double-clicking a stop on the Gradient tool's annotator opens its popover (fields `index`, `x`, `y`, `tab`); set `color` (hex), `opacity` or `location` (percentages) and `ui.dialog.confirm` to apply them to the selected stop. `gradient.selectStop {index}` picks the stop the annotator, the panels and Delete/←/→ (`ui.key`) act on |
 | `engine.execute` `ui.savePdfDialog` | `{path?, preset?, range?, …document.exportPdf options}` | opens the Save PDF dialog (`file.export.pdf` with no params opens it too). Its fields are the `document.exportPdf` options: set `compatibility` with `ui.dialog.set {field: "compatibility", value: "1.5"}`, a whole section with `{field: "compression", value: {…}}`, the artboards with `__allArtboards: false` and `range`, the visible section with `__section` (General, Compression, Marks and Bleeds, Output, Advanced, Security, Summary). `ui.dialog.confirm` writes `path` (else asks for one), returns `{path, bytes, warnings}` and opens the file when `viewAfterSaving` is set |
-| `file.save` / `file.saveAs` / `file.saveCopy` / `file.saveAsTemplate` (via `engine.execute`) | `{path?, format?, options?, svg?}` | Save writes the document's own file in its own format (a document opened from or saved as SVG/PDF saves as that again; the result's `warnings` say what the format loses). With `path` the file is written at once (Save As or a Copy to an SVG path without SVG options first opens SVG Options, below). Without one (never saved, a converted older file, Save As, a Copy, a Template) the app shows a save panel with one file type per save format (`vectorcraft`, `template`, `pdf`, `svg`, `svgz`), then the format's options: SVG opens the `svgOptions` dialog (below; returns `{"pending": "svgOptions", "path"}`), PDF the `savePdf` dialog (its `__save` field names the save command); `ui.dialog.confirm` finishes the save. On the web a `saveOptions` dialog (fields `path`, `format`) first names the file and picks the format. `file.formatOptions {format?}` reads the options a save would use. `file.revert` opens a `confirm` dialog (`{"pending": "confirm"}`); `ui.dialog.confirm` reloads the saved file in the same tab |
+| `file.save` / `file.saveAs` / `file.saveCopy` / `file.saveAsTemplate` (via `engine.execute`) | `{path?, format?, options?, svg?}` | Save writes the document's own file in its own format (a document opened from or saved as SVG/PDF saves as that again; the result's `warnings` say what the format loses). With `path` the file is written at once (Save As or a Copy to an SVG path without SVG options first opens SVG Options, below). Without one (never saved, a converted older file, Save As, a Copy, a Template) the app shows a save panel with one file type per save format (`vectorcraft`, `template`, `pdf`, `svg`, `svgz`, `ai`; for a Template, `template` and `ait`), then the format's options: SVG opens the `svgOptions` dialog (below; returns `{"pending": "svgOptions", "path"}`), PDF the `savePdf` dialog (its `__save` field names the save command); `ui.dialog.confirm` finishes the save. A name typed in the panel without the file type's extension gets it, and a name the panel returns with the extension of a format the panel does not list has it replaced (in a native save, `card.png` and `card.ait` are saved as `card.vectorcraft`, and `notes.v2`, whose extension names no format, is saved as `notes.v2.vectorcraft`); when a file of that name exists, which the panel did not ask about, the save (and every export or other write through a save panel) answers `cancelled` and opens a `replaceFile` dialog (fields `message`, `detail`, `path`): `ui.dialog.confirm` writes that file, `ui.dialog.cancel` writes nothing. On the web a `saveOptions` dialog (fields `path`, `format`) first names the file and picks the format. `file.formatOptions {format?}` reads the options a save would use. `file.revert` opens a `confirm` dialog (`{"pending": "confirm"}`); `ui.dialog.confirm` reloads the saved file in the same tab |
 | SVG Options (`engine.execute` of `file.export.svg`, `file.saveAs`, `file.saveCopy`) | `{}` / `{path?, svg?: {…}}` | `file.export.svg` without params, and Save As or Save a Copy to an `.svg`/`.svgz` path without SVG options, open the `svgOptions` dialog (`ui.dialog.set` its fields: `styling`, `outlineText`, `images`, `objectIds`, `decimals`, `minify`, `responsive`, `fewerTspans`, `metadata`, `preserveEditing`, `useArtboards`, `allArtboards`, `range`, `showCode`, `profile` (`svg11`/`tiny12`), `encoding` (`utf8`/`utf16`/`latin1`), `embedFonts`; `ui.dialog.confirm` exports or saves and remembers the choices). With `svg: {…}` (the `document.formats` SVG options) they run directly. `app.save {path?, svg?}` takes the same options; a document saved as SVG saves as SVG again with the same options |
-| `engine.execute` `file.place` | `{paths?}` / `{path \| name+dataBase64, …file.place params}` | with no file, picks files and opens the `place` dialog; with `paths`, opens it for them (fields `files`, `link`, `template`, `replace`; `__replace` says whether Replace applies, `__info` describes each file). `ui.dialog.confirm` places one file centred in the view (or in place of the selected object) and loads the place cursor with several (`file.place.queue`). With a file, it runs `file.place` centred in the view. Files dropped on the window with no document open open. On the web, files dropped on the canvas are placed at the drop point (linked; Shift embeds) and files dropped off it (the tab bar) open, as in Illustrator; desktop drops carry no pointer position, so documents (native, SVG, PDF, `.ai`, EPS, DXF, EMF/WMF) open as tabs of their own and pictures and text are placed in the middle of the view. With the cursor loaded (`ui.inspect` → `tool: "place"`, `toolOptions: {count, current, name, names}`), `ui.pointer` clicks and drags place files and `ui.key` ←/→/↑/↓ and Escape cycle and discard them |
-| `app.export` raster options | `{path?, format: png \| jpg \| webp, ppi?, background?, antiAlias?, interlaced?, quality?}` | `ppi` sets the pixel size (72 = one pixel per point) and is stored in the file; `background` is `transparent`, `white`, `black` or `"#rrggbb"`; `antiAlias` is `none`, `art` or `type` (text snapped to pixels); `interlaced` writes an Adam7 PNG. The PNG Options dialog (`pngOptions`; `jpgOptions` / `webpOptions` for the other raster formats) has the same fields: fill them with `ui.dialog.set` and press OK with `ui.dialog.confirm` |
+| `engine.execute` `file.place` | `{paths?}` / `{path \| name+dataBase64, …file.place params}` | with no file, picks files and opens the `place` dialog; with `paths`, opens it for them (fields `files`, `link`, `template`, `replace`; `__replace` says whether Replace applies, `__info` describes each file). `ui.dialog.confirm` places one file centered in the view (or in place of the selected object) and loads the place cursor with several (`file.place.queue`). In the desktop app the dialog reads its files off the UI thread: `__info` is empty until they are read, `ui.dialog.confirm` returns `{background: true, status}`, `ui.inspect` lists the files still being read in `placing`, and the file is placed (or the cursor loaded) once it is read. With a file, it runs `file.place` centered in the view, at once. Files dropped on the window with no document open open. On the web, files dropped on the canvas are placed at the drop point (linked; Shift embeds) and files dropped off it (the tab bar) open, as in Illustrator; desktop drops carry no pointer position, so documents (native, SVG, PDF, `.ai`, EPS, DXF, EMF/WMF) open as tabs of their own and pictures and text are placed in the middle of the view. Swatch libraries and color books (`.vcswatches`, `.gpl`, `.ase`, `.acb`), graphic style libraries (`.vcstyles`), Libraries panel files (`.vclibrary`), presets (`.vcflattener`, `.vcpdfpresets`, `.vcprintpresets`, `.vcperspective`, `.vcexportpresets`), plug-ins (`.wasm`) and shortcut sets (`.kys`, in Import Shortcut Set) open wherever they are dropped, as File › Open opens them. With the cursor loaded (`ui.inspect` → `tool: "place"`, `toolOptions: {count, current, name, names}`), `ui.pointer` clicks and drags place files (in the desktop app each file is read off the UI thread and placed once it is read, and `ui.inspect` lists it in `placing` until then) and `ui.key` ←/→/↑/↓ and Escape cycle and discard them |
+| `app.export` raster options | `{path?, format: png \| jpg \| webp, ppi?, width?, height?, background?, antiAlias?, interlaced?, quality?}` | `ppi` sets the pixel size (72 = one pixel per point) and is stored in PNG and JPEG files (WebP files store no resolution); `width` or `height` sets the size of each file in pixels instead (`width` wins), and PNG and JPEG files store the resolution that results; `background` is `transparent`, `white`, `black` or `"#rrggbb"`; `antiAlias` is `none`, `art` or `type` (text snapped to pixels); `interlaced` writes an Adam7 PNG. The PNG Options dialog (`pngOptions`; `jpgOptions` / `webpOptions` for the other raster formats) has the same fields: fill them with `ui.dialog.set` and press OK with `ui.dialog.confirm` |
 | `app.export` JPEG options | `{path?, format: jpg, quality?: 0–100, colorModel?: rgb \| cmyk \| gray, method?: baseline \| optimized \| progressive, scans?: 3–5, embedIcc?, imageMap?: none \| client \| server}` | `cmyk` writes ink amounts in the working CMYK space (CMYK colours keep their inks; RGB ones are separated with the colour settings); `embedIcc` (default true) embeds sRGB, the working CMYK profile or a grey profile, generated by the CMS; `imageMap` also writes `<stem>.html` (client-side `<map>`) or `<stem>.map` (NCSA) beside the image for the objects with a URL and an Image Map shape (`attributes.set`), returned in `linked`. The `jpgOptions` dialog has these fields too (`quality` is shown 0–10; a CMYK document defaults to `cmyk`) |
 | `app.export` PNG-8 and GIF | `{path?, format: png8 \| gif, colors?: 2–256, reduction?: perceptual \| selective \| adaptive \| web \| blackWhite \| gray, dither?: none \| diffusion \| pattern \| noise, ditherAmount?: 0–100, transparency?, matte?, interlaced?, …raster options}` | a palette of at most `colors` entries (art with that many colours or fewer keeps them exactly); pixels under half opacity become one transparent entry unless `transparency` is false, partly transparent edges are blended over `matte` (`none` keeps their colour). `png8` writes an indexed `.png` (1–8 bits per pixel); Export for Screens rows take both. The `png8Options` / `gifOptions` dialogs have these fields |
 | `app.export` Text and WebP | `{path?, format: txt, encoding?: utf8 \| utf16, lineEndings?: lf \| crlf, selectionOnly?}` / `{format: webp, lossless?, quality?}` | Text writes the stories in stacking order (back to front; a thread once; hidden objects and template layers left out), each line ended by `lineEndings`; `utf16` is little-endian with a byte order mark. Export As → Text opens `txtOptions` (fields `path`, `encoding`, `lineEndings`, `selectionOnly`; OK writes the file). WebP is always lossless: `lossless: false` adds a warning |
-| `engine.execute` `document.exportForOffice` | `{}` / `{path?, ppi?: 72 \| 150 \| 300, transparent?, artboard?}` | File → Save for Office Documents…: without params opens `saveForOffice` (fields `ppi`, `transparent`, `artboard`; OK picks the file); with params writes the artboard as a PNG (`path`, else a picked file) → `{path}`. Headless it returns `{dataBase64, width, height}` |
-| Background Save / Export | `app.save`, `app.export {path}`, `file.save`, `file.saveAs`, `file.saveCopy` | with the `backgroundSave` / `backgroundExport` preferences on (the default) the desktop app writes the file from a snapshot on a worker thread: the call returns `{path, background: true, status}` at once, `ui.inspect` lists the jobs still running in `background` (labels such as `"Saving a.vectorcraft"`), and the document counts as saved (as of the snapshot) once its file is written. Quit and Close wait for them. With the preferences off (`prefs.set`), saves return once written |
-| `engine.execute` `file.exportForScreens` | `{}` / `{…document.exportForScreens params}` | without params opens `exportForScreens` on the settings the document last exported with (`document.exportSettings`). Fields: `tab` (`artboards` \| `assets`), `select` (`all` \| `range` \| `full`), `range` ("1-3, 5"), `boards` (a bool per artboard; checking them sets `select` and `range`), `includeBleed`, `folder` (desktop; default the Desktop, else home), `openLocation`, `subfolders`, `prefix`, `preset` (`""` \| `mobile` \| `density`), `formats` (rows `{format, scale: "2x" \| "100w" \| "100h" \| "72ppi", suffix, quality?, folder?}`), `settings` (`{png \| png8 \| jpg \| webp \| gif \| svg \| pdf: {…options}}`, the gear's Format Settings; `__settings` names the format shown). `ui.dialog.confirm` exports (a bad range or no folder keeps it open); on the web OK reads "Download" and the files download (several as one `.zip`). With params it runs `document.exportForScreens`: no `folder` returns the files (or with `zip: true` one store-only zip) as `dataBase64`; with `openLocation` the first file is shown in the file manager |
-| Export for Screens' Assets tab, Asset Export panel | `ui.dialog.set` `tab: "assets"`, `assets: [asset id…]`; `window.panel {panel: "assetExport"}` | on the Assets tab of `exportForScreens` the `assets` field lists the checked asset ids (all of them when it opens); `ui.dialog.confirm` runs `document.exportForScreens {assets}` (nothing checked keeps it open) and OK reads "Export Asset". The Asset Export panel acts through `assets.*` and shares the format rows with the dialog (`assets.settings.set`) |
-| `engine.execute` `file.exportSelection` | `{multiple?}` | File › Export Selection…: collects the selected objects as assets (`assets.add`; one per object unless `multiple` is false) and opens `exportForScreens` on its Assets tab with just them checked → `{assets}`. `document.exportSelection` still exports the selection in one go, without the dialog |
-| CSS Properties panel | `window.panel {panel: "cssProperties"}`; `engine.execute` `css.copy` / `css.exportFile` | the panel shows `css.selection` of the selection (after Generate CSS, while nothing is selected, `css.generate`); its menu holds the options the commands take (`units`, `position`, `dimensions`, `unnamed`, `rasterize`). `css.copy {scope?, …options}` copies the CSS to the clipboard → `{css, rules}`; `css.exportFile {path?, scope?, …options}` writes `css.export` to `path` (else a picked file; the web downloads it) with the pictures of rasterized art next to it → `{path, rules, images}` |
+| `engine.execute` `document.exportForOffice` | `{}` / `{path?, ppi?: 72 \| 150 \| 300, transparent?, artboard?}` | File → Save for Office Documents…: without params opens `saveForOffice` (fields `ppi`, `transparent`, `artboard`; OK picks the file); with params writes the artboard as a PNG (`path`, else a picked file) → `{path}`, and the status bar shows the first of the export's `warnings` as Save As shows a save's notes. Headless it returns `{dataBase64, width, height, warnings}` |
+| Native file dialogs | any command with no `path` that needs one (`file.open`, `file.saveAs`, `file.place`, exports…) | on macOS (a sheet on the window) and Linux the dialog doesn't hold the window: the call returns `"cancelled"` at once, `ui.inspect` reports `fileDialog`, and when the person at the computer picks a file the command runs again on the document it was asked for. While it is open another dialog is refused: that call returns `"cancelled"` too, and the status bar (`ui.inspect` → `ui.status`) says `"A file dialog is open: choose there first"`; on macOS `app.quit`, `file.close` and `file.closeAll` return that message and the menu bar does nothing (#592, #867). On Windows the dialog is shown in line: the call returns once it closes. Pass `path` to skip the dialog |
+| Background Save / Export | `app.save`, `app.export {path}`, `file.save`, `file.saveAs`, `file.saveCopy`, `file.exportForScreens {folder, …}` | with the `backgroundSave` / `backgroundExport` preferences on (the default) the desktop app writes the file from a snapshot on a worker thread: the call returns `{path, background: true, status}` at once (`file.exportForScreens`: `{background: true, status}`, and the files are written into the folder from a snapshot taken at the call), `ui.inspect` lists the jobs still running in `background` (labels such as `"Saving a.vectorcraft"`), and the document counts as saved (as of the snapshot) once its file is written. Quit and Close wait for them. A job that fails reports the error in the status bar only (`ui.inspect` → `ui.status`), a path outside `--automation-write-root` included. With the preferences off (`prefs.set`), saves return once written. `app.save {path?, wait: true}` and `app.export {path, wait: true}` wait for the jobs already running, write the file before they reply whatever the preferences are set to, and return its result or the error. When the save asks first (the question before replacing a file that opened with losses, or on macOS and Linux the file dialog for an untitled document without `path`), the reply is `{pending}` or `"cancelled"` as before, and the save that runs after the answer uses the preferences. A `wait` that is not `true`, `false` or `null` is refused with "`wait` must be true or false", and nothing is written |
+| `engine.execute` `file.exportForScreens` | `{}` / `{…document.exportForScreens params}` | without params opens `exportForScreens` on the settings the document last exported with (`document.exportSettings`). While the Artboard tool is in use, the artboards it has selected (its `selected` option, the rows the Artboards panel highlights) are checked instead, and `select` is `range`, or `all` when every artboard is selected. Fields: `tab` (`artboards` \| `assets` \| `layers` \| `selection`; OK reads Export Layer or Export Selection on those), `layers` ([layer id…] checked), `selectionMode` (`one` \| `each`), `name` (the file name pattern of `document.exportForScreens`), `counterStart`, `folders` (`none` \| `rows` \| `format` \| `item` \| `itemFormat`), `exportPreset` (the preset applied last), `__savePreset` (the name typed to save one), `select` (`all` \| `range` \| `full`), `range` ("1-3, 5"), `boards` (a bool per artboard; checking them sets `select` and `range`), `includeBleed`, `folder` (desktop; default the Desktop, else home), `openLocation`, `subfolders`, `prefix`, `preset` (`""` \| `mobile` \| `density`), `formats` (rows `{format, scale: "2x" \| "100w" \| "100h" \| "72ppi", suffix, quality?, folder?}`), `settings` (`{png \| png8 \| jpg \| webp \| gif \| svg \| pdf: {…options}}`, the gear's Format Settings; `__settings` names the format shown). `ui.dialog.confirm` exports (a bad range or no folder keeps it open); on the web OK reads "Download" and the files download (several as one `.zip`). With params it runs `document.exportForScreens`: no `folder` returns the files (or with `zip: true` one zip) as `dataBase64`; with `openLocation` the first file is shown in the file manager. When `warnings` is not empty, an export into a folder or a download shows the first in the status bar as Save As shows a save's notes |
+| Export for Screens' Assets tab, Asset Export panel | `ui.dialog.set` `tab: "assets"`, `assets: [asset id…]`; `window.panel {panel: "assetExport"}` | on the Assets tab of `exportForScreens` the `assets` field lists the checked asset ids (all of them when it opens); `ui.dialog.confirm` runs `document.exportForScreens {assets}` (nothing checked keeps it open) and OK reads "Export Asset". The Asset Export panel acts through `assets.*` and shares the format rows with the dialog (`assets.settings.set`). The dialog has the format presets menu (☰). In the dialog, `exportPreset` names the preset applied last (`ui.dialog.set` of it applies the preset it names, as picking it does; a name that is not a preset's is an error and leaves the dialog as it was), `__exportPresets` lists the presets, and `__savePreset` holds the name being typed after Save Preset…. The panel menu applies presets through `assets.settings.set {exportPreset}` and holds Save As Preset…, Save Changes, Delete Preset, Import Preset… and Export Preset…. Import and Export use picked files. |
+| `engine.execute` `file.exportSelection` | `{multiple?}` | File › Export Selection…: collects the selected objects as one asset (`assets.add`; one per object with `multiple: true`) and opens `exportForScreens` on its Assets tab with just them checked → `{assets}`. `document.exportSelection` still exports the selection in one go, without the dialog |
+| CSS Properties panel | `window.panel {panel: "cssProperties"}`; `engine.execute` `css.copy` / `css.exportFile` | the panel shows `css.selection` of the selection (after Generate CSS, while nothing is selected, `css.generate`); its menu holds the options the commands take (`units`, `position`, `dimensions`, `unnamed`, `rasterize`). `css.copy {scope?, …options}` copies the CSS to the clipboard → `{css, rules}`; `css.exportFile {path?, scope?, …options}` writes `css.export` to `path` (else a picked file; the web downloads it) with the pictures of rasterized art next to it → `{path, rules, images, warnings}`, and the status bar shows the first of `warnings` as Export As shows an export's notes |
 
 | `ui.dialog.*` on `importPdf` | `{field: "page" \| "allPages" \| "range" \| "cropTo" \| "password", value}` | opening (`app.open`, `file.open`) a PDF or `.ai` with several pages or a password, or placing one (`file.place` without `page`), opens the Import PDF dialog (`mode`: `open` or `place`; `pageCount`). While `__locked` is true, set `password` and `ui.dialog.confirm` to unlock it (a one-page file then opens or is placed). Then set `allPages: false` and `range` ("2-3, 5") to open some pages, or `page` to place one, and `cropTo` (`bounding`, `art`, `crop`, `trim`, `bleed`, `media`); `ui.dialog.confirm` opens or places them (placing keeps the other `file.place` params, such as `link`, `template` and `at`, in `__place`). `document.open {pages, cropTo, password}` and `file.place {page, crop, password}` do the same without the dialog |
 
@@ -55,17 +133,22 @@ Swatch editors: `engine.execute` with `ui.swatchOptions {name}` opens the `swatc
 `preview`), which previews on the canvas while open; `ui.dialog.confirm` applies it with `swatch.edit` as one undo
 step and `ui.dialog.cancel` rolls the preview back. For a gradient swatch the dialog has `name` only (it shows the
 gradient) and OK renames it; pattern swatches open pattern editing instead. Dropping a gradient (or colour) on a
-swatch of its kind in the Swatches panel with Alt held replaces it (`swatch.edit {name, paint}`).
+swatch of its kind in the Swatches panel with Alt held replaces it (`swatch.edit {name, paint}`), unless that is a
+tint swatch. A swatch dragged from the panel with Alt held also replaces the swatch of its kind it is dropped on,
+which keeps its name and place (`swatch.edit {name, paint: {swatch}}`); without Alt, or on a tint swatch or a swatch
+of another kind, it moves.
 
 Confirmations: deleting swatches from the Swatches panel opens a `confirm` dialog (fields `message`, `detail`);
 `ui.dialog.confirm` runs the command it asks about (here `swatch.delete`) and `ui.dialog.cancel` drops it.
 
-New swatches and colour groups: `ui.newSwatch {spot?, group?}` opens the `newSwatch` dialog prefilled from the active
+New swatches and colour groups: `ui.newSwatch {spot?, global?, group?}` opens the `newSwatch` dialog prefilled from the active
 fill or stroke (fields as in `swatchOptions` plus `group`; a gradient or pattern only takes `name`) and
 `ui.newColorGroup {swatches?}` opens `newColorGroup` (fields `name`, `fromArtwork`, `toGlobal`, `includeTints`,
 `swatches`); `ui.dialog.confirm` runs `swatch.new` / `swatch.newGroup`.
 
 The Color Picker is a dialog too: `engine.execute {command: "ui.colorPicker", params: {stroke?, color?}}` opens it for the fill (or stroke) proxy; `ui.dialog.set {field: "hex", value: "00FF00"}` (or `color`, `channel`, `webOnly`, `swatches`) then `ui.dialog.confirm` applies the colour through `paint.setFill` / `paint.setStroke`.
+
+Sample Color from Screen: `ui.sampleScreenColor {stroke?, picker?}` shows the system's color sampler (macOS, and browsers with an EyeDropper) and returns `null` at once. When the person at the computer clicks a color anywhere on the screen, it runs `paint.setFill` (or `paint.setStroke`) with that color as one undo step, or with `picker: true` sets the open Color Picker's `color`; Escape cancels it and the colors stay as they were. The sampled display sRGB color is converted into the working RGB space. `ui.inspect` reports `screenSampler: true` until the sampler answers. Without a sampler (Windows, Linux, other browsers) the call returns an error. To read a color from VectorCraft's own window without a person, call `ui.screenshot`.
 
 Graphic styles: `ui.graphicStyleOptions {name}` opens the `graphicStyleOptions` dialog (field `name`) for a style and
 `ui.dialog.confirm` renames it with `graphicStyle.rename` (a name another style has returns an error and keeps the
@@ -73,13 +156,24 @@ dialog open); without `name` it names a new style made from the selection (`grap
 `ui.mergeGraphicStyles {names}` opens the same dialog to name the style `ui.dialog.confirm` merges from them
 (`graphicStyle.merge`). Deleting styles from the panel asks first with a `confirm` dialog (`graphicStyle.delete`).
 
+Text styles: `ui.newCharStyle` and `ui.newParaStyle`, what Alt-click on New in the Character Styles and Paragraph
+Styles panels runs, open the `newTextStyle` dialog (field `name`) for a style made from the text selected when it
+opened; `ui.dialog.confirm` makes it with `charStyle.new` / `paraStyle.new` (a name another style has returns an error
+and keeps the dialog open).
+
+Symbols: `ui.symbolOptions` opens the `symbolOptions` dialog (field `name`) that the Symbols panel's New Symbol asks
+first; `ui.dialog.confirm` makes the symbol from the selection with that name (`symbol.new`). F8 runs
+`ui.symbolOptions` without params.
+
 Gradient panel: double-clicking a stop on the panel's slider opens the same `gradientStop` popover, with a `screen`
 field (`[x, y]`, screen points) in place of `x`/`y`. The panel's stop eyedropper selects the Eyedropper tool with the
 tool option `stop` (the tool to return to; `tool.setOption {key: "stop", value: "gradient"}`): its next click on art
 samples the colour there into the selected stop (`paint.sampleColor {color, stop}`) and switches back. Dragging a
 swatch, a Fill/Stroke proxy or the panel's gradient thumbnail onto art runs `paint.setFill` / `paint.setStroke` (the
 active proxy) with the paint's params and the object's `ids`; a colour dropped on the panel's ramp adds or recolours
-a stop.
+a stop. Alt-clicking a color swatch in the Swatches panel recolors the selected stop as a drop on it does
+(`paint.editGradient {stops}`), or the selected point of a freeform gradient (`paint.freeform.setPoint`); with no stop
+or point selected, it paints the inactive Fill or Stroke.
 
 Freeform gradients: double-clicking a point with the Gradient tool opens the same `gradientStop` popover on the selected
 point (`paint.freeform.selectPoint`); its fields are `color` (hex), `opacity` and `spread` (percentages), applied by
@@ -91,10 +185,17 @@ for `eyedropper` it opens Eyedropper Options, an `eyedropperOptions` dialog (fie
 `appearance.copyFrom` copies). For `hand` it fits the artboard in the window (`view.fitArtboard`) and for `zoom` it
 shows 100% (`view.actualSize`). For `rotate`, `scale`, `reflect` and `shear` it opens the same dialog as Object ›
 Transform (dialog kind = the tool id), or fails with `nothing selected`. For `selection`, `directSelection` and
-`groupSelection` it opens the Move dialog (kind `move`), with the same failure. `ui.key` Enter with one of those seven
+`groupSelection` it opens the Move dialog (kind `move`), with the same failure; Move opens on the offset of the last
+drag or Move (`dx`, `dy`) and with the `copy`, `objects` and `preview` it was last confirmed with (its `patterns` is
+the `transformPatternTiles` preference, which its OK sets). `ui.key` Enter with one of those seven
 tools opens its dialog too (nothing happens without a selection), with the transform tools' `origin` at their reference
-point. Gradient tool handles snap to anchors, edges and smart guides; Shift constrains them to 45° steps from the
-`constrainAngle` preference.
+point. For `lineSegment`, `arc`, `rectangularGrid` and `polarGrid` it opens the tool's Tool Options: the dialog its
+click opens (kind = the tool id), without `x` and `y` and with `__toolOptions: true`, whose `ui.dialog.confirm` runs
+`tool.setOption {tool, values}` and draws nothing; the next drag with the tool and its click dialog use the values
+(the line's `fillLine`, the grids' Default Size `width`, `height` and `reference` too). For `typeOnPath` and
+`verticalTypeOnPath` it opens Type on a Path Options for the selected type on a path (a `command` dialog running
+`type.pathOptions`), or fails when no type on a path is selected. Gradient tool handles snap to
+anchors, edges and smart guides; Shift constrains them to 45° steps from the `constrainAngle` preference.
 
 Effect dialogs: `engine.execute {command: "effect.dialog", params: {effect, index?, item?}}` opens the `effect` dialog
 (fields: the effect's parameters, `preview`). With `index` it edits that applied effect of `item` (null: the object's
@@ -102,12 +203,17 @@ effects) prefilled with its values, and `ui.dialog.confirm` runs `effect.setPara
 `effect.apply`. Choosing an effect that the list already has returns `{"pending": "effectExists"}` and opens the
 `effectExists` question: `ui.dialog.confirm` opens the applied effect's dialog, `ui.dialog.set {field: "discard",
 value: true}` then confirm opens a fresh one that adds another, `ui.dialog.cancel` drops it.
+The Transform effect's dialog (`effect.dialog {effect: "distort.transform"}`) has Transform Each's controls: sliders
+for `scaleH`, `scaleV` (%) and `moveH`, `moveV` (pt), an angle dial for `rotate`, then `copies`, `reflectX`,
+`reflectY`, `reference` (0–8, the 9-point grid) and `random` (each object varies its own way, the same on every redraw).
 
 Plug-in dialogs: `engine.execute {command: "plugin.dialog", params: {id}}` (Object › Plug-ins) runs an object filter
 plug-in at once when it takes no parameters, else opens the `plugin` dialog: one field per declared parameter (named
 after it), `__plugin` (the plug-in id) and `preview`. It previews `plugin.run` on the canvas while open;
 `ui.dialog.confirm` keeps the result as one undo step and `ui.dialog.cancel` rolls it back. Live-effect plug-ins open
-the `effect` dialog (`effect.dialog {effect: "plugin.<id>"}`). `ui.installPlugin {path?}` installs a `.wasm` (without
+the `effect` dialog (`effect.dialog {effect: "plugin.<id>"}`). An exporter plug-in with parameters opens the
+`pluginExport` dialog once Export As has picked the file: one field per parameter, `__plugin`, and `__export` (the
+export's own parameters); `ui.dialog.confirm` writes the file. `ui.installPlugin {path?}` installs a `.wasm` (without
 a path it asks for one); see [plugins.md](plugins.md).
 
 Overprint Black: the Edit → Edit Colors → Overprint Black… menu item opens a `command` parameter dialog for
@@ -127,6 +233,13 @@ Edit or Apply Colors runs `ui.recolorDialog {colors, library?}` with the harmony
 recolours as usual; with nothing selected the colours themselves are the rows and `ui.dialog.confirm` saves them as a
 new colour group (`swatch.newGroup`, named by the `groupName` field).
 
+Color panel options: `ui.colorPanel {mode?, options?}` picks the panel's mode as its panel menu does (`grayscale`,
+`rgb`, `hsb`, `cmyk` or `websafe`; the active color converts to the mode's model as one undo step) and shows
+(`options: true`) or hides (`false`) the options. It answers `{mode, options, shown}`: `mode` is null until a mode is
+picked, and `shown` is the mode the panel shows the color in, or `tint` for a tint of a global or spot swatch.
+Another mode, `lab` included, answers an error. The desktop app keeps both settings with its preferences, and
+`ui.inspect` reports them as `ui.color_mode` and `ui.color_hide_options`.
+
 Color Themes panel (`window.panel {panel: "colorThemes"}`): its Create tab makes a theme on a harmony wheel and its
 My Themes tab lists the saved themes; every action runs a command (`colorTheme.save`, `colorTheme.delete`,
 `colorTheme.addToSwatches`, `swatch.newGroup` for the theme being made), and `colorTheme.list` reads the library.
@@ -140,9 +253,18 @@ and spot colours exist; the dialog then stays open.
 
 Recolor Artwork: `ui.recolorDialog {colors?, library?, group?}` opens the `recolor` dialog on the selected art
 (`colors`: a count for an n-colour job, or colours to assign as the new colours; `library`: Limit to Library, a library
-or `"document"`, `""` for the first library; `group`: a colour group, Edit or Apply Color Group). Fields: `rows` (`[{from: [keys], to: key, exclude?}]`
+or `"document"`, `""` for the first library; `group`: a colour group, Edit or Apply Color Group). Fields: `rows` (`[{from: [keys], to: key, exclude?, tint?, model?}]`
 as `recolor.reduce` returns them), `colors` (null for Auto), `method`, `preserveWhite`, `preserveBlack`,
-`preserveGrays`, `limitTo`, `groupName`, `tab` (`assign` or `edit`), `rule` (harmony id), `linked`, `preview`. Setting
+`preserveGrays`, `limitTo`, `groupName`, `tab` (`assign` or `edit`), `rule` (harmony id), `linked`, `preview`,
+`sliderMode` (the mode of the color sliders under the rows: `hsb`, `rgb`, `cmyk`, `lab`, or `tint` for a row whose new
+color is a spot color of the library; unset, they show the new color's own model). The sliders edit the first selected
+row's new color and give that row `model: "new"`, so the preview and confirm give only that row's art the color in
+the sliders' mode; another edit of the row's new color, Reset and rows reduced again remove it. The Edit tab shows the
+same sliders under the wheel, and its mode menu also has Global Adjust (`sliderMode: "global"`): Saturation,
+Brightness, Temperature and Luminosity sliders that set `globalAdjust` (`{saturation, brightness, temperature,
+luminosity}`, percent from -100 to 100, 0 by default). The dialog sends a non-zero `globalAdjust` as `recolor.apply`'s
+`globalAdjust` in every slider mode, so one slider changes every recolored color at once and the rows keep their new
+colors; colors opened alone are saved as a group with the change. Setting
 `colors`, a preserve flag or `limitTo` reduces the rows again (also on `ui.dialog.confirm`). The dialog previews
 `recolor.apply` on the canvas; confirm keeps it as one undo step (with a group, the group is rewritten in the same
 step; with no art selected only the group changes). In the Swatches panel, double-clicking a colour group's folder,
@@ -154,9 +276,11 @@ Clicking a swatch there runs `swatch.library.add {library, names: [name], apply}
 one with Alt), so one undo step adds and applies it; Shift/Cmd-clicks select swatches and colour groups for
 Add to Swatches.
 `window.swatchLibrary.other {path?}` loads a library file (or another document's swatches) and opens it there;
-opening a `.vcswatches` or `.gpl` file with `app.open` does the same. `ui.saveSwatchLibrary {names?}` opens the
-`saveSwatchLibrary` dialog (fields `name`, `format`: `vcswatches`/`gpl`/`css`, `user`: save to the user library
-folder, `selectedOnly` with `names`); `ui.dialog.confirm` runs `swatch.library.save` (to a file it asks for a path).
+opening a `.vcswatches`, `.gpl` or `.ase` file with `app.open` does the same. A file with the same extension and
+bytes as a User Defined library opens as that library. `ui.saveSwatchLibrary {names?}` opens the
+`saveSwatchLibrary` dialog (fields `name`, `format`: `vcswatches`/`gpl`/`ase`/`css`, `user`: save to the user library
+folder, `selectedOnly` with `names`); `ui.dialog.confirm` runs `swatch.library.save` (to a file it asks for a path
+and suggests `name` with the format's extension as the file name; the web downloads the file under that name).
 
 Graphic style libraries open in the same panel: `window.graphicStyleLibrary {library}` (`library_panel: {kind:
 "graphicStyles", id}`; `library: null` closes it). Clicking a style there runs `graphicStyle.addFromLibrary {library,
@@ -166,7 +290,29 @@ document's graphic styles) and opens it there; opening a `.vcstyles` file with `
 Defined libraries are `window.userGraphicStyleLibrary1`…`10` in Window → Graphic Style Libraries.
 `ui.saveGraphicStyleLibrary {names?}` opens the `saveGraphicStyleLibrary` dialog (fields `name`, `user`: save to the
 user library folder, `selectedOnly` with `names`); `ui.dialog.confirm` runs `graphicStyle.saveLibrary` (to a file it
-asks for a path).
+asks for a path and suggests `name` with `.vcstyles` as the file name; the web downloads the file under that name).
+
+Symbol libraries open in the same panels: `window.symbolLibrary {library}` (`library_panels` kind `symbols`; `library:
+null` closes them). Clicking a symbol there runs `symbol.addFromLibrary {library, name}`, adding it to the document's
+Symbols in one undo step; Shift/Cmd-clicks select symbols for Add to Symbols, and a symbol dragged onto the canvas runs
+it with `place: true` and the drop point as `x`, `y`. `window.symbolLibrary.other {path?}` loads the symbols of any
+document VectorCraft opens (a saved symbol library is a `.vectorcraft` document) and opens them there. The User
+Defined libraries are `window.userSymbolLibrary1`…`10` in Window → Symbol Libraries. `ui.saveSymbolLibrary {names?}`
+(Save Symbols…, the Symbols panel's Save Symbol Library…) opens the `saveSymbolLibrary` dialog (fields `name`, `user`:
+save to the user library folder, `selectedOnly` with `names`); `ui.dialog.confirm` runs `symbol.saveLibrary` (to a
+file it asks for a path and suggests `name` with `.vectorcraft`).
+
+Brush libraries open in the same panels: `window.brushLibrary {library}` (`library_panels` kind `brushes`; `library:
+null` closes them). Clicking a brush there runs `brush.addFromLibrary {library, name}`, adding it to the document's
+Brushes in one undo step, with `apply: true` when paths are selected (they take the brush in the same step; the step is
+Apply Brush when the document has the brush already and the click only applies it);
+Shift/Cmd-clicks select brushes for Add to Brushes. A brush dragged onto a path runs it with `apply: true` and that
+path as `ids`, and one dragged onto the Brushes panel runs it without. `window.brushLibrary.other {path?}` loads the
+brushes of any document VectorCraft opens (a saved brush library is a `.vectorcraft` document) and opens them there.
+The User Defined libraries are `window.userBrushLibrary1`…`10` in Window → Brush Libraries. `ui.saveBrushLibrary
+{names?}` (Save Brushes…, the Brushes panel's Save Brush Library…) opens the `saveBrushLibrary` dialog (fields
+`name`, `user`: save to the user library folder, `selectedOnly` with `names`); `ui.dialog.confirm` runs
+`brush.saveLibrary` (to a file it asks for a path and suggests `name` with `.vectorcraft`).
 
 Tile Edge Color: Object → Pattern → Tile Edge Color… (`ui.tileEdgeColor`) opens the `tileEdgeColor` dialog (field
 `color`: `#rrggbb` or a preset name such as "Light Blue"); `ui.dialog.confirm` sets the preference
@@ -175,8 +321,10 @@ Tile Edge Color: Object → Pattern → Tile Edge Color… (`ui.tileEdgeColor`) 
 Window title bar: on Windows and Linux the window has no OS decorations and the app bar is the title bar. Its
 caption buttons (Minimize, Maximize/Restore, Close) sit at the bar's right end, 46 pt each; they are window chrome,
 not commands, so drive them with `ui.click` if needed. Close runs `app.quit` (the same `saveChanges` questions for
-modified documents), and empty bar space and the 5 pt window edges move and resize the window. macOS and the web
-build are unchanged.
+modified documents), and empty bar space and the 5 pt window edges move and resize the window. Preferences › User
+Interface › System Title Bar (`systemTitleBar`, read when the app starts) gives the window its OS decorations back
+instead: the OS title then shows the active document (`*name — VectorCraft` with unsaved changes) and the app bar
+drops its brand mark. On macOS the window buttons are centred on the app bar; the web build is unchanged.
 
 Fill/Stroke chips and panel shortcuts: the Control bar's and Properties' Fill and Stroke chips bring their proxy
 forward (`paint.toggleActive {fill}`) and open a popover with the Swatches panel (Shift-click: the Color panel's mixer);
@@ -190,12 +338,10 @@ Edit › Keyboard Shortcuts (entry `panel:<id>`, every panel) and pressed with `
 the Window menu's items.
 `window.panel` takes a panel id in any case or the panel's display label (`"Layers"`, `"Color Guide"`).
 
-Collapsing the dock: `window.collapseDock {collapsed?}` (the » at the top of the dock; omitted toggles) hides the
-Properties | Layers | Libraries group and puts its three panels as icons at the top of the icon column, under a «
-that expands them again. While collapsed, those icons and `window.panel {panel: "properties"|"layers"|"libraries"}`
-pop the panel out next to the column like the other icon panels (`ui.dock_collapsed`, `ui.open_panel` in
-`ui.inspect`); expanding with one popped out shows its tab. The state is saved with the preferences and in user
-workspaces; the built-in workspaces expand the dock.
+Collapsing the dock: `window.collapseDock {collapsed?}` (the » / « on the dock's column bar; omitted toggles the
+outer column) collapses every expanded dock column to icons (`true`) or expands the outer column, Properties |
+Layers | Libraries (`false`). A panel in a collapsed column opens as a flyout from its icon, as `window.panel` does
+(`ui.open_panel` in `ui.inspect`, `flyout` in `ui.docking`); the state is `ui.dock_collapsed`.
 
 Floating tool groups: dragging or clicking the tear-off bar down a tool group's flyout (or releasing the long press
 that opened it over the bar) floats the group as a strip of tool buttons, moved by the same bar and put back in the
@@ -204,6 +350,65 @@ layout holding `tool` (omitted toggles; a tool alone in its slot is an error). W
 that open its flyout raise the strip instead. The strips (`ui.floating_flyouts` in `ui.inspect`: the group's tools
 and the strip's top-left corner) are saved with the preferences and in user workspaces; the built-in workspaces
 float none.
+
+Edit Toolbar: the ••• button at the bottom of the toolbar (or `window.editToolbar {open?}`) opens the All Tools
+drawer beside the toolbar; Escape or a click outside closes it. While it is open, `ui.drag` a tool from it onto the
+toolbar to add it (onto a button's top or bottom edge: its own slot before or after; onto its middle: into its
+group), from the toolbar into it to remove it, or within the toolbar to move it. `toolbar.addTool {tool, slot?,
+place?}`, `toolbar.removeTool {tool, group?}` and `toolbar.reset` do the same for the current Basic or Advanced
+toolbar and return its slots; the edits (`ui.toolbar_edits`) are saved with the preferences. The drawer lists
+the tools one per row (icon, name, shortcut), each flyout group framed together under its heading; its ☰ menu
+has Reset and the Basic and Advanced toolbars. Its Show section (`toolbar.show {control?, on?}`, `control` one
+of `fillStroke`, `coloring`, `drawMode`, `screenMode`) shows or hides the controls under the toolbar's tools,
+saved with the preferences (`ui.toolbar_show`). The toolbar names its groups only with Preferences › User
+Interface › Show Tool Group Labels, off as it ships (#1736).
+
+New Toolbar: Window › Toolbars › New Toolbar… (or New Toolbar… in the drawer's ☰ menu) asks for a name, and
+`window.toolbar.new {name}` makes the toolbar at once: a blank toolbar that floats on its own, moved by its title
+bar; its tools scroll when the window is too short for them. The title bar's × hides it, and its double arrow
+(`window.toolbarColumns {toolbar, double?}`) shows its tools in one column or two. Window › Toolbars lists each
+toolbar by its name, and its item (`window.toolbar.custom {name, show?}`) shows or hides it. Window › Tools hides
+the Tools panel alone, and Tab hides these toolbars with the other panels. Window › Tools after Tab shows the Tools
+panel without them. A toolbar shown with its item or made with New Toolbar after Tab shows alone, and the other
+toolbars Tab hid are turned off. A toolbar's ••• button
+(`window.editToolbar {toolbar}`) opens the All Tools drawer beside it, and the drawer's drags and
+`toolbar.addTool`, `toolbar.removeTool` and `toolbar.reset` with `toolbar` edit it; the drawer has no Show section
+there. `window.floatTools {tool, toolbar}` floats one of its groups, and a group torn off it shows and hides with
+it. `window.toolbar.list` returns the toolbars (`ui.custom_toolbars` in `ui.inspect`: name, slots, shown flag,
+two-column flag, top-left corner, the groups torn off it). They are kept with the workspace they were made in:
+switching workspaces shows that workspace's toolbars, Reset Workspace keeps them, and New Workspace starts the new
+workspace with a copy of them.
+
+The Contextual Task Bar: its handle (the grip at its left end) drags it anywhere on the canvas, which always holds
+it whole, also when the window shrinks. Unpinned, the bar keeps that offset as it follows the selection, until
+another document becomes active. Its More Options (…) menu has Hide Bar (`window.taskBar`); Pin Bar Position
+(`window.taskBar.pin {pinned?}`, omitted toggles, checked while pinned), which holds the bar where it is across
+selection changes (the handle still moves it) and, turned off, lets it follow the selection again from there; Reset
+Bar Position (`window.taskBar.reset`), which unpins it and puts it back under the selection; and Show Properties
+Panel. As in Illustrator, neither the position nor the pin is saved: each launch starts with the bar under the
+selection.
+
+The Free Transform widget: while the Free Transform tool (E) is active, a small box at the canvas's top left holds
+Constrain over the tool's three modes, Free Transform, Perspective Distort and Free Distort. The buttons set the tool's
+options, as `tool.setOption {key: "mode", value: "free"|"perspective"|"distort"}` and `{key: "constrain", value}` do:
+Constrain acts as Shift held (proportional scaling, moves and rotations by 45°) and does nothing in the distort modes,
+where it is greyed. The modifier keys still work while dragging (Cmd on a corner distorts it freely, Cmd+Alt+Shift in
+perspective, Cmd on a side shears).
+
+Ruler guides are layer objects: `guide.add` puts a guide on the current layer (or `layer`), where it shows, hides,
+locks and is deleted with its layer and is listed in the Layers panel (a click on its row selects it, a drag onto
+another layer's rows moves it there); `guide.setLayer {index?, indexes?, layer}` moves guides to another layer, and
+`guide.list` gives each guide's `layer`, `shown` and `editable`. Guides on a hidden or locked layer leave the selection
+and can't be picked, moved or deleted, and no guide goes onto a locked layer; Duplicate copies a layer's guides, Merge
+Selected and Flatten Artwork keep them on the merged layer (Flatten discards a hidden layer's). Guides in files saved
+before guides had layers go on the top visible, unlocked layer when the document opens.
+
+Floating panels: the window's panels and the canvas are one craft-ui docking layout (see Shared panel docking
+below). Dragging a tab, a group's drag bar or an icon out of the dock and dropping it on the canvas or on no target
+floats it; dropping it on a group's tabs, on a group's upper or lower edge or beside a column docks it there. On
+the desktop each floating window is an OS window of its own; on the web and on Wayland it floats inside the app
+window. `ui.toolbar_pos` in `ui.inspect` is the Tools panel's corner (null: docked); `window.panel.float` and
+`window.panel.dock` with `panel: "tools"` float it at `x`, `y` or dock it on the window's left edge.
 
 Flatten Transparency: `ui.flattenTransparencyDialog` opens the `flattenTransparency` dialog for the selection
 (fields `preset`: a preset name, setting it loads that preset's options; the option keys of
@@ -238,12 +443,23 @@ changed since); its preview greys the art and paints the highlighted objects or 
 Expand: Object → Expand… (`ui.expandDialog`, or `object.expand` without params from the menus, palette and shortcuts)
 opens the `expand` dialog for the selection. Fields: `object`, `fill`, `stroke` (all on; `__object`, `__fill`,
 `__stroke` say which the selection has something for, as `object.expand.info` does, and the others are disabled),
-`gradient` (`objects` or `mesh`) and `steps` (1–1000, default 255). `ui.dialog.confirm` runs `object.expand` with them as
-one undo step.
+`gradient` (`objects` or `mesh`) and `steps` (1–1000, default 255), which are enabled when `fill` is on and
+`__gradient` says the selection has a gradient fill (`object.expand.info`'s `gradient`). `ui.dialog.confirm` runs `object.expand` with them as
+one undo step. While the selection has an appearance Expand Appearance expands (effects, several fills or strokes, a
+brush: `object.expand.info`'s `appearance`), the menu item is dimmed with a tooltip to use Object → Expand Appearance
+first, and `ui.expandDialog` refuses with that message (#3089).
 
 Attributes panel: `window.panel {panel: "attributes"}` (Cmd+F11) shows it; its controls run `attributes.set`,
 `path.reverse {reversed}` and `path.setFillRule {rule}`, and its Browser button runs the UI command
 `attributes.openUrl {url?}`, which opens the URL (default: the selection's) in the web browser and answers `{url}`.
+It opens `http:`, `https:` and `mailto:` URLs only, and answers a control request with an error: it hands the URL to
+another app.
+
+SVG Interactivity panel: `window.panel {panel: "svgInteractivity"}` shows it; its controls run
+`svgInteractivity.setEvent`, `svgInteractivity.removeEvent` and `svgInteractivity.clearEvents`, and its Link JavaScript
+Files… button runs the UI command `ui.javascriptFilesDialog`, which opens the `javascriptFiles` dialog (fields `file`
+and `selected`). The dialog's Add and Remove buttons run `svgInteractivity.addFile {file}` and
+`svgInteractivity.removeFile {file}` at once, and `ui.dialog.confirm` closes it.
 
 Spot Colors: the Swatches panel menu's Spot Colors… (`ui.spotColors`) opens the `spotColors` dialog (field `useLab`:
 true shows and separates spot colours defined in Lab from their Lab values, false from their working-CMYK
@@ -256,11 +472,25 @@ Scale options: `ui.menuDialog {command}` opens the dialog a command's menu item 
 have the fields `corners` (Scale Corners) and `strokes` (Scale Strokes & Effects). They start from the preferences
 `scaleCorners` and `scaleStrokes`, and `ui.dialog.confirm` keeps them as the preferences (`prefs.set`) before running
 `object.scale` / `object.transformEach` with them. The Transform panel's checkboxes and flyout item and the Properties
-panel's checkbox set the same preferences through `prefs.set`.
+panel's checkbox set the same preferences through `prefs.set`. Transform Each opens on the values it was last
+confirmed with (scale, move, rotate, reflect, random, reference, `objects` and `preview`; never `copy`), kept with the
+UI state (#1732). Its Copy button, left of Cancel, sets `copy: true` and confirms; `ui.dialog.set {field: "copy",
+value: true}` then `ui.dialog.confirm` does the same.
 
 Use Preview Bounds: the Align panel flyout's Use Preview Bounds item shows and toggles the `usePreviewBounds`
 preference (`prefs.set`); while it is on, the bounding box and the Transform panel, Properties and Control bar
 fields measure visual bounds.
+
+Align to Glyph Bounds: the Align panel flyout's Align to Glyph Bounds submenu shows and toggles the
+`alignGlyphBoundsPoint` (Point Text) and `alignGlyphBoundsArea` (Area Text) preferences (`prefs.set`), checked while on.
+
+Align To: the Align panel's Align To choice is saved with the preferences, and `ui.inspect` reports it as
+`ui.align_to` (`"selection"` or `"artboard"`; Align to Key Object stores no choice). The align buttons of the Align
+panel, the Control bar and the Properties panel run `object.align` with `to: "artboard"` when one object is selected,
+else with `"key"` while the selection has a key object, else with that choice. The Object → Align items send the same
+`to` while every selected object is selected whole. With direct-selected anchor points or segments they send no `to`,
+and the points align to their own bounds. `object.align` from `engine.execute` or `ui.menu.invoke` without `to` keeps
+the engine's default: the key object while there is one, else the selection.
 
 Width Point Edit: double-clicking a width point with the Width tool, or `ui.widthPointEdit {id, index}`, opens the
 `widthPoint` dialog (fields `id`, `index`, `t`, `side1` and `side2`: the left and right widths in points, `linked`,
@@ -268,15 +498,15 @@ Width Point Edit: double-clicking a width point with the Width tool, or `ui.widt
 value: true}` then confirm (the Delete button) removes the point with `stroke.widthPoint.remove`.
 
 Corners: double-clicking a Live Corners widget with the Selection or Direct Selection tool, or `ui.corners {id?,
-corners?}`, opens the `corners` dialog for a live rectangle's corners (the Direct-Selected ones, else all four; fields
-`id`, `corners`: indices 0–3 clockwise from the top-left, `kind`: round, invertedRound or chamfer, `radius` in points;
-`kind` or `radius` is absent while the corners differ). `ui.dialog.confirm` runs `object.setLiveShape` with them.
+corners?}`, opens the `corners` dialog for a path's corners (the Direct-Selected ones, else every corner; fields `id`,
+`corners`: anchor indices of the path with its corners uncut, a rectangle's 0–3 clockwise from the top-left, `kind`:
+round, invertedRound or chamfer, `radius` in points; `kind` or `radius` is absent while the corners differ). `ui.dialog.confirm` runs `object.setLiveShape` with them.
 
 Perspective plane options: double-clicking a plane widget of the perspective grid, or `ui.perspectivePlane {plane}`,
 opens the `perspectivePlane` dialog (fields `plane`: left, right or ground; `location`: points along the plane's
 normal; `objects`: none, move or copy). `ui.dialog.confirm` runs `perspective.plane.move` with them.
 
-Units: dialog distance fields (Move's `dx`/`dy`, shape sizes, Offset Path's `offset`, Split Into Grid's `gutter`,
+Units: dialog distance fields (Move's `dx`/`dy`, shape sizes, Offset Path's `offset`, Split Into Grid's gutters and totals,
 Artboard Options' sizes, effects' distances, `transformEach`'s `moveH`/`moveV`, New Document's `width`/`height`, the
 length preferences in `preferences`) show in the General unit (the active document's units, or `unitsGeneral` without a
 document). Through `ui.dialog.set` a number is in points and a string may carry its unit (`"10 mm"`; a bare number in a
@@ -285,7 +515,7 @@ string is points). The `preferences` dialog's `unitsGeneral` starts as the activ
 
 Document Setup: File → Document Setup… (`file.documentSetup`, Cmd+Alt+P) opens the `documentSetup` dialog. Its fields
 are what `document.setup` reports (`units`, `bleed` [top, bottom, left, right] in pt, `outlineImages`,
-`highlightSubstitutedFonts`, `highlightSubstitutedGlyphs`, `gridSize`, `gridColors`, `simulatePaper`, `flattenerPreset`,
+`highlightSubstitutedGlyphs`, `gridSize`, `gridColors`, `simulatePaper`, `flattenerPreset`,
 `discardWhiteOverprint`, `language`, `quotes`, `typographersQuotes`, `superscript`, `subscript`, `smallCapsSize`,
 `exportText`, `backgroundContents`) plus `tab` (`General`, `Transparency` or `Type`) and `bleedLinked`.
 `ui.dialog.confirm` runs `document.setup` with them as one undo step; a bad value answers with an error and the dialog
@@ -341,7 +571,50 @@ Missing linked files: `app.open` of a document whose linked images' files can't 
 folder; `ui.dialog.set {field: "discard", value: true}` then confirm ignores it (the images keep their preview), with
 `applyToAll` the rest too. The next missing file is asked about after each answer; `ui.dialog.cancel` stops asking.
 Then, with the preference `updateLinks: "askWhenModified"`, modified linked files are offered for update in a
-`confirm` dialog whose `ui.dialog.confirm` runs `links.update`.
+`confirm` dialog whose `ui.dialog.confirm` runs `links.update`. The same happens when the app's window comes back to
+the front and a linked file of the active document changed meanwhile (asked once per change of a file); with
+`"automatically"` the files are read again at once, with `"manually"` the Links panel shows them as modified.
+
+Find Linked Files: in the `missingLinks` dialog, `ui.dialog.set {field: "searchFolder", value}` then `ui.dialog.confirm`
+is Find in Folder…: the dialog becomes `findLinks`, which looks in that folder and its subfolders for every file the
+dialog still asks about (`links.findFiles`). Fields: `document` (the document's uid), `missing` (`[{name, path, ids}]`),
+`modified`, `back`, `state` (empty, `searching`, `done`, `stopped` or `failed`), `search` (the search's `id`), `folder`,
+`found` (`links.findFiles`'s `links`, with the files found), `searched`, `skipped`, `unreadable`, `stopped`, `error`,
+`picks` (the file chosen for each row of `missing`, or null; with each search result, a row not chosen in the dialog
+gets its only same file, else its only file found), `touched` (the rows whose file was chosen in the dialog; search
+results leave their pick as it is), `copy` (Copy into the document's folder, shown for a saved document) and
+`searchFolder`. `ui.dialog.set {field: "searchFolder", value}` then `ui.dialog.confirm` searches that folder and keeps
+the dialog open. The fields change as frames draw the dialog; `links.findFiles {}` reports the search directly.
+`ui.dialog.confirm` without `searchFolder` is Relink: each row with a file runs `links.relink {ids, path, copy}`, one
+undo step each (`copy` for images only: a placed document is relinked where its file is), and it returns `{relinked,
+failed}`; the status line names the first file that failed. With `back` (opened from `missingLinks`), the rows left
+without a file and those that failed go back to that dialog, then the modified files are offered for update.
+`ui.dialog.cancel` closes it and stops its search. `ui.findLinksInFolder {folder?, ids?}` (Find in Folder… in the Links
+panel menu) asks for a folder (or takes `folder`), then opens the dialog for the files of `ids`, else of the selected
+linked images and placed documents, else the missing ones; with nothing to look for, it fails with "No linked files to
+look for" and asks for no folder. On the web, `ui.findLinksInFolder` is disabled, `links.findFiles` can't start a search
+and the dialog doesn't open.
+
+Missing fonts: once the missing linked file questions are answered, or at once when there are none, `app.open` of a
+document whose type uses fonts that aren't available (`text.missingFonts`) opens the `missingFonts` dialog, one document
+at a time, and so does `links.editOriginal` of a placed document. When another dialog takes its place (Import PDF for a
+file opened next, for example), the dialog opens again once that one closes. Fields: `document` (the document's uid),
+`fonts` (`[{family, style, status, resolved}]`), `fontsNextToDocument` (the `Fonts` folder next to the document, or
+empty), `state` (empty, `searching`, `done`, `stopped` or `failed`), `search` (the search's `id`), `folder`, `found`
+(`text.findFontFiles`'s `fonts`, with the files found), `searched`, `skipped`, `unreadable`, `stopped`, `error` and
+`chosen` (the files to add; a font's first file is chosen when the search finds it). Its buttons are Find Fonts and
+Close, with Search Fonts Folder, Find in Folder… and, once files are found, Add Fonts in the dialog.
+`ui.dialog.set {field: "discard", value: true}` then `ui.dialog.confirm` is Find Fonts: the dialog closes and Type ›
+Find Font opens (dialog `findFont`) with the first missing font selected. `ui.dialog.set {field: "searchFolder",
+value}` then `ui.dialog.confirm` searches that folder (`text.findFontFiles`), keeps the dialog open and clears
+`searchFolder`, also when the search doesn't start. The fields change as frames draw the dialog; `text.findFontFiles
+{}` reports the search directly. `ui.dialog.confirm` without `discard` or `searchFolder` is Add Fonts: it copies the
+files in `chosen` (`text.addFontFiles`) and closes the dialog. `ui.dialog.cancel` (Close) closes it and stops its
+search. After Find Fonts or Close, the dialog doesn't open again for that open.
+`ui.missingFontsDialog {folder?}` opens the dialog for the active document, searching `folder` when given.
+`ui.findFontsInFolder {folder?}` (Find in Folder… in Type › Find Font…, shown when the document misses fonts) asks for a
+folder, then opens the dialog searching it. The web shows a status line instead of the dialog, and both commands are
+disabled there.
 
 Text Import Options: placing a `.txt` file through the app (`file.place` with a file and no `text` options, the Place
 dialog, a drop) opens the `textImport` dialog (fields `platform`: `windows`/`mac`, `characterSet`: `unicode`/`ansi`,
@@ -349,11 +622,16 @@ dialog, a drop) opens the `textImport` dialog (fields `platform`: `windows`/`mac
 type with those options (`file.place {text: {…}}`).
 
 System clipboard formats: through the desktop app, `edit.copy` and `edit.cut` publish what `clipboard.flavours`
-lists to the system clipboard, and every Paste command first loads what another app copied (`clipboard.importSvg`,
-`importPdf`, `importText` or `importImage`, centred in the view); an import error answers the Paste with that error
+lists to the system clipboard (once they are written, the status bar shows the first of the PNG's and PDF's
+`warnings`, such as an image that couldn't be decoded), and every Paste command first loads what another app copied (`clipboard.importSvg`,
+`importPdf`, `importEps`, `importText` or `importImage`, centred in the view; the desktop app reads PDF and EPS from
+the Windows clipboard and, with SVG, from the macOS pasteboard, and an `.eps` file, or a `.ai` or `.ait` file that holds a PDF or PostScript, copied in a file manager anywhere; a copied `.ai` or `.ait` file that holds a PDF loads with `importPdf {editingData: true}`, which reads its editing data); an import error answers the Paste with that error
 and pastes nothing. Cmd+V also pastes a bitmap or PDF with no text beside it (on the key's release, as egui sends no
 Paste event for it). Screenshots paste on every platform: Windows reads `PNG`, else `CF_DIBV5`/`CF_DIB`, macOS the
 pasteboard's PNG or TIFF, Linux `image/png`, and the web the picture the browser's paste event carries (#457).
+In the desktop app a Paste from the menus or the keys (`ui.key`) decodes a bitmap off the UI thread: `ui.inspect` lists
+`clipboard` in `placing` until it is pasted, and an import error then shows in the status bar. `engine.execute`
+`edit.paste*` reads it at once.
 
 File menu details: `file.openRecent1`…`file.openRecent30` open the recent files the `recentFilesCount` preference
 lists (0 hides them all; `file.recentFiles` returns the listed paths), `file.reveal` shows the document's file in the
@@ -385,13 +663,15 @@ Placement Options: the Links panel's flyout (or `ui.placementOptionsDialog {ids?
 `fit`/`fill`, `align`: `topLeft` … `bottomRight`, `clip`). `ui.dialog.confirm` runs `links.placementOptions` with them as
 one undo step. The Links panel (`window.panel {panel: "links"}`) shows `links.list` and the first selected image's
 `links.info`; `links.editOriginal` and `links.reveal` (Edit › Edit Original, Show in Folder) hand the linked file to
-the system and return `{path}`.
+the system and return `{path}`. Edit Original opens only a regular file whose extension is a format `document.open`
+reads, and answers a control request with an error unless the file is a placed document (which opens in a tab).
 
 Package: File → Package… (`ui.packageDialog`) opens the `package` dialog for a saved document (a document never saved
 gets a `confirm` dialog whose OK runs `file.saveAs`). Fields: `folder` (the location), `name` (the package folder),
 `copyLinks`, `linksFolder`, `relink`, `copyFonts`, `report`. `ui.dialog.confirm` saves unsaved changes, runs
 `file.package` and then opens a `confirm` dialog whose OK runs `file.showPackage {folder}`; the web downloads the zip
-instead. Document Info's flyout picks a category and Save… runs `docInfo.save {path?, selectionOnly?}`.
+instead. Document Info's flyout picks a category and Save… runs `docInfo.save {path?, selectionOnly?, category?}` with the
+category the panel shows (none for All Categories, which writes every category).
 
 Slices: through the app, `object.slice.options` and `object.slice.divide` with no params open their dialogs on the
 selected slices. `sliceOptions` (fields `kind`: `image`/`noImage`/`htmlText`, `name`, `url`, `target`, `message`,
@@ -411,7 +691,9 @@ EPS Options: Export As… with the EPS format (`file.exportAs {format: "eps"}`, 
 (`preserve`, `discard`), `flattenerPreset` (a built-in or saved preset's name), `includeLinkedFiles`, `thumbnails`,
 `cmykPostScript`, `compatibleGradients`, `level` (`2`, `3`), plus `path` and the artboard choice (`useArtboards`,
 `range`). `ui.dialog.confirm` checks them (a bad value or an unknown preset keeps the dialog open), remembers them for
-the next EPS Options and writes the file(s), asking for a path when there is none.
+the next EPS Options and writes the file(s), asking for a path when there is none. With Use Artboards and two or more
+artboards, it writes a central file of the whole document under the chosen name and one `{stem}_{artboard}.eps` per
+artboard. When no art shows, it writes only the artboard files.
 
 Data Recovery: at launch, copies left behind by a crash open the `recovery` dialog (never copies another running
 instance keeps, so instances started side by side for screenshots don't get it). Fields: `copies` (`[{file, title,
@@ -424,7 +706,11 @@ Native save options: File → Save As to a native or `.ai` file opens the `saveO
 (heading "VectorCraft Options" or "PDF-compatible .ai Options"). Fields: `separateArtboards`, `all` (true: every
 artboard; false: `range`, such as "1-3, 5"), `includeLinked`, `embedProfiles`, `pdfCompatible`, `compress`, and for
 native files `version` and `preview`. A bad range keeps the dialog open; `ui.dialog.confirm` writes the file and the
-artboards' files.
+artboards' files. A `.ai` file's `aiVersion` comes first: `"pdf"` (the default) or `"7"` (legacy, heading "Legacy .ai
+Options"), which takes only `transparentImages` (`"flatten"` or `"omit"`), `hiddenObjects` (`"layer"`, `"omit"` or
+`"visible"`, the Hidden Objects menu), `outlineText` (the Text menu: false Editable, true Outlines) and, with several artboards, the artboard
+picker: `boards`, one bool per artboard (default: those last saved, else all), saved as `range`, one file per checked
+artboard. OK is disabled with none checked.
 
 EMF and WMF: Export As… lists both formats (`file.exportAs {format: "emf"}` or `"wmf"`); they have no options
 dialog, so `ui.dialog.confirm` asks for the path and writes the file (one per artboard with Use Artboards). Open and
@@ -446,7 +732,8 @@ a preset) plus `__view` (`original`, `optimized`, `2up`, `4up`), `__zoom` (`fit`
 `__color` (the colour table's selected colour). `ui.dialog.confirm` remembers the settings and saves (a save panel for
 the image, or the page with HTML output; the web downloads the files); with `discard: true` it is Done: it remembers
 the settings and closes. `file.saveForWeb` with settings saves without the dialog, and `file.saveForWeb.browser`
-writes the HTML page to a temporary folder and opens it in the default browser (desktop).
+writes the HTML page to a temporary folder and opens it in the default browser (desktop). Both return the export's
+`warnings`, and the status bar shows the first one as Save As shows a save's notes.
 
 PSD Options: Export As… with the PSD format (`file.exportAs {format: "psd"}`, then the save dialog) opens `psdOptions`:
 the raster rows of PNG Options (`ppi`, `background`, `antiAlias`), then `colorModel` (`rgb`, `cmyk`, `gray`; a CMYK
@@ -465,7 +752,17 @@ print queue (the web: the browser's print dialog), else, with `toFile` or no pri
 PDF. With `discard: true` it is Done: it only keeps the settings. Settings that can't print (a missing artboard, a
 range of no tiles) answer with an error and keep the dialog open. `file.print {settings?, printer?, toFile?, path?}`
 prints without the dialog; `print.printers` lists the printers and `print.printerSetup {printer?}` opens their system
-settings (Setup…).
+settings (Setup…). Desktop submission returns `{background: true, printed: false, printer, status}`
+while the spooler runs on a worker. `ui.inspect` lists it under `background`; completion or refusal
+appears in `ui.status`. Quit waits for submissions. PDF/PostScript export and the browser's print
+dialog retain their existing command results.
+
+Agents still get `{printers: [{name, default}], service, setup}` from `print.printers`;
+discovery failure yields an empty list. Print replies preserve `pages`, `bytes`, `format` and
+`warnings` alongside the pending fields above. Validation/start failures use the existing control
+reply `{ok: false, error: "…"}`; later spooler failures appear in `ui.inspect` → `ui.status`, with
+no second reply or structured backend error object. Headless MCP keeps its engine-only `file.print`
+result (`path` or `dataBase64`, plus the same print metadata); no spooler fields are added there.
 
 Print presets: in the `print` dialog, `preset` names the print preset whose settings were loaded last; setting it
 (`ui.dialog.set {field: "preset", value: "Posters"}`) loads that preset's settings, and the list reads `[Custom]` once
@@ -541,8 +838,13 @@ events take `pressure` (0..1, default 1): it is the Liquify intensity while Use 
 
 Freehand Tool Options: double-clicking the Pencil, Paintbrush, Smooth, Blob Brush or Eraser tool
 (`tool.options {tool: "pencil"}`) opens a `freehandOptions` dialog. Its fields are `tool` and the options the tool
-keeps: `fidelity` (pt; Pencil, Paintbrush, Smooth), `fill` (Pencil, Paintbrush), `closeWithin` and `editWithin` (screen
-pixels, 0 turns it off; Pencil, Paintbrush) and `size` (pt; Blob Brush, Eraser). `ui.dialog.confirm` runs
+keeps: `fidelity` (pt; Pencil, Paintbrush, Smooth, Blob Brush), `fill` (Pencil, Paintbrush), `keepSelected` (Pencil,
+Paintbrush, Blob Brush; on by default for the Pencil and Paintbrush and off for the Blob Brush, and while it is off
+the path a stroke draws, continues or merges into is not selected afterwards), `mergeOnlySelection` (Blob Brush;
+off by default, and while it is on a stroke merges only with selected blobs), `closeWithin` and `editWithin`
+(screen pixels, 0 turns it off; Pencil, Paintbrush), `size` (pt; Blob Brush, Eraser), and `angle`
+(°, −180 to 180; 0) and `roundness` (%, 0 to 100 for the Blob Brush, where 0 is drawn as 0.1, and 1 to 100 for
+the Eraser; 100) of the tip (Blob Brush, Eraser); the tip keeps its angle on the page along a stroke. `ui.dialog.confirm` runs
 `tool.setOption {tool, values}`.
 
 `ui.pointer` events also take `holdMs` (0..60000): the pointer then holds still that long, button down, before the
@@ -570,7 +872,9 @@ new blends start with. The Blend tool (`ui.tool.select {tool: "blend"}`): `ui.po
 another, blends them; down on an anchor point blends from that point; each further object clicked joins the blend.
 A selected blend shows its spine. With Direct Selection (`directSelection`) a `ui.pointer` drag from a spine point
 moves it (`object.blend.spine.moveAnchor`, one undo step) and, once a point is clicked, from one of its handles
-reshapes the curve; Direct and Group Selection pick a blend's key objects. With the Pen tool a click on a selected
+reshapes the curve, and a drag on a curved spine segment bends it (`object.blend.spine.reshapeSegment`); the Anchor
+Point tool (`anchorPoint`) bends any segment of a selected blend's spine, straight ones too. Direct and Group Selection
+pick a blend's key objects. With the Pen tool a click on a selected
 blend's spine adds a point (on a point no key sits on, deletes it).
 
 Perspective grid view options: View → Perspective Grid lists Show/Hide Grid, Show/Hide Rulers, Snap to Grid
@@ -588,3 +892,105 @@ drags its points (a press on a point focuses it, and a press on one of the focus
 handle); a Mesh tool click inside a mesh envelope adds a row and a column. While an envelope or its content is
 selected the Control bar shows its controls (Edit Envelope / Edit Contents, warp style, orientation, bend and
 distortions or mesh rows and columns, Reset, Envelope Options); each runs an `object.envelope.*` command.
+
+## Shared panel docking
+
+The canvas and the panels form one craft-ui docking layout: the protected `canvas` panel beside a dock at the
+window's right edge. The dock's columns, from the window edge inwards, are the Properties | Layers | Libraries
+column, the icon column (one group per row of icon panels) and any columns the user adds. Floating windows hold
+groups stacked top to bottom or split side by side. Workspaces save the layout (`ui.docking` in `ui.inspect`;
+absent while the workspace was never customized and its layout follows `ui.dock_tab`, `ui.dock_collapsed` and
+`ui.dock_width`) and where each hidden panel was (`ui.docking_hidden`). `ui.inspect` has no `floating_panels`.
+
+Commands (`panel` and every panel parameter take a panel id in any case or its display label):
+
+| Command | Params (`?` optional) | Does |
+|---|---|---|
+| `window.panel.move` | `{panel, anchor, zone?, before?, group?, placement?}` | into the group holding `anchor`: `zone` is `tab` (default), `center`, `left`, `right`, `top`, `bottom`, `above` or `below` (a group of its own above or below it); `before` reorders tabs |
+| `window.panel.float` | `{panel, x?, y?, width?, height?, group?, column?, onto?, above?, below?, collapsed?}` | floats the panel, its group (`group`) or its dock column or floating window (`column`; a number counts as `true`) at the rect given, else inside the dock area at the size a drag floats it at |
+| `window.panel.dock` | `{panel, anchor?, zone?, before?, group?, column?, side?, onto?, above?, below?, icon?, collapsed?}` | without a destination, a floating panel goes back where it floated from (else joins the first dock group) and a hidden one shows where it was; `anchor` and `zone` as for `move`; `side` (`Start`, `End`) makes it a new innermost column of that dock |
+| `window.panel.activate`, `.close`, `.closeGroup`, `.closeOthers` | `{panel}` | shows and selects, or hides |
+| `window.panel.minimize` | `{panel, minimized?}` | minimizes a dock group to its tabs, or a floating window to its title bar; omitted toggles |
+| `window.panel.collapse` | `{panel, collapsed?}` | `window.panel.minimize`; returns `{panel, collapsed, layout}` |
+| `window.panel.iconic` | `{panel, iconic?}` | collapses the panel's dock column to icons, or expands it |
+| `window.panel.layout`, `ui.dock` | `{action}` | one craft-ui `Action`, externally tagged, e.g. `{"MoveFloating":{"panel":"swatches","rect":[44,66,360,450]}}` or `{"ResizeSplit":{"path":[],"size":{"Ratio":0.35}}}`; `ui.dock` also takes craft-ui's `{operation, …}` |
+
+Parameters from VectorCraft's own docking, on `window.panel.float` and `window.panel.dock`:
+
+- `onto`: as a tab of the group holding that panel. On `float` that group must float; on `dock` it is `anchor`.
+- `above`, `below`: as a group of its own above or below the group holding that panel, in its floating window or
+  dock column.
+- `column: n` on `dock` (with no other destination): its group (or the panel, when `group` is false and its group
+  holds others) as a new dock column at place `n`, 1 next to the icon column, counting inwards. A panel whose group
+  floats takes its whole floating window along. `column: true` with no `anchor` or `side` docks at the innermost place.
+- `icon: true` on `dock`: in a row of its own at the end of the icon column.
+- `collapsed`: then minimizes (`true`) or restores (`false`) its group or floating window.
+
+Give at most one of `onto`, `above`, `below`, `icon` and a column place, and none of them with `anchor`, `side`,
+`zone`, `before`, `x`, `y`, `width` or `height`. The commands return `{layout, closed, floating}`: the layout,
+the panels the command closed, and the floating panels. A hidden panel is shown first. Unknown panels, invalid
+geometry or destinations, and stale split paths return an error and leave the layout unchanged.
+
+`ui.docking` (a control method, read only) returns:
+
+- `layout`: the layout in use; `customized`: whether the workspace has a saved layout; `hidden`: the hidden panels
+  with a remembered place.
+- `flyout`: the panel open as a flyout from an icon column; `focused`: the panel the user last clicked or pressed
+  in; `autoCollapse`: flyouts close on a press outside them; `panelsShown`: false while Tab or a full screen mode
+  hides the panels.
+- `hitRects`: `[{hit, rect}]`, every docking control the main window drew last frame (tabs, drag bars, borders,
+  column bars, » buttons, icons, icon grips, floating title bars and close buttons, resize edges, dividers) as a
+  craft-ui `Hit`, e.g. `{"Tab":"layers"}`, with `[x, y, width, height]` in window points. Groups, columns and
+  windows are named by their first panel.
+
+Floating windows in OS windows of their own (the desktop): `hitRects` leaves out their controls, and `ui.pointer`,
+`ui.click` and `ui.drag` reach the main window only, so drive them with commands. Such a window's place on screen is
+`floating[].native` in the layout (`rect` is where it would float inside the app window). Keys typed in one run the
+main window's shortcuts; modal dialogs block them.
+
+## Synthetic input hardening checklist
+
+- [x] Validate counts and reserve the whole gesture before queue mutation.
+- [x] Bound pending events across all synthetic methods, preserving rejected requests' prior queue.
+- [x] Yield after a finite control-request batch per frame; retain later requests and schedule another frame.
+
+## Transport hardening checklist
+
+- [x] Bound idle, partial-line and reply-write waits without renewing a partial-line deadline per byte.
+- [x] Release connection slots on worker exit, including timeout and failed worker creation.
+- [x] Preserve correlated replies and persistent connections within the transport budgets.
+
+## In the browser: `window.vectorcraft`
+
+The web build has no TCP server (a page can't listen on a socket), so it offers the same methods to the
+page itself, as promises on `window.vectorcraft` (`apps/vectorcraft-web/src/api.rs`). An agent driving VectorCraft in a
+browser tab, or a host app showing it in an `<iframe>`, uses the commands it would send to the desktop
+app:
+
+| Call | |
+|---|---|
+| `vectorcraft.request(method, params)` | any control method of this document → its `result` |
+| `vectorcraft.execute(command, params)` | `engine.execute` |
+| `vectorcraft.commands()` / `vectorcraft.inspect()` | `engine.commands` / the inspect method |
+| `vectorcraft.screenshot(params)` | `ui.screenshot` (no `path`: the PNG comes back inline) |
+| `vectorcraft.openFile(name, bytes)` | opens the bytes the way a dropped file opens (returns `true` once queued) |
+| `vectorcraft.captureDownloads(on)` | while on, a save or export is kept in the page instead of downloaded |
+| `vectorcraft.files()` / `vectorcraft.readFile(name)` | the kept files (`{path, size}`) / one of them as a `Uint8Array` |
+
+Errors reject with an `Error` carrying the method's message. Requests run on the UI's next frame, so a
+hidden tab (whose frames the browser pauses) answers when it is shown again.
+
+## Revision history
+
+| Date | Change | Summary |
+|---|---|---|
+| 2026-10-31 | minor | Confining file access: on Windows a `:` in a name after the drive (an NTFS alternate data stream) is refused with the device names (#3604). |
+| 2026-10-25 | minor | Panel docking on craft-ui's layout: `ui.docking`, the floating and dock parameters, native floating windows. |
+| 2026-10-24 | minor | Documented the brush library panel commands (`window.brushLibrary`, `.other`, `ui.saveBrushLibrary`, `window.userBrushLibrary1`…`10`). |
+| 2026-10-24 | minor | Documented `ui.screenshot`'s 64 MiB inline-PNG reply cap: with `path` the file is still written and `pngBase64` is omitted when over the cap; a path-less `data: true` request fails before encoding. |
+| 2026-10-25 | minor | Documented that Object → Expand… is dimmed, and `ui.expandDialog` refuses, while the selection has an appearance Expand Appearance expands (`object.expand.info`'s `appearance`, #3089). |
+| 2026-10-25 | minor | Documented that Transform Each opens on the values it was last confirmed with and that its Copy button confirms with `copy: true` (#1732). |
+| 2026-10-23 | minor | Documented the symbol library panel commands (`window.symbolLibrary`, `.other`, `ui.saveSymbolLibrary`, `window.userSymbolLibrary1`…`10`). |
+| 2026-10-13 | minor | Documented count, pending-event and per-frame request budgets (#1709). |
+| 2026-10-13 | minor | Documented transport deadlines and connection-slot recovery (#1726). |
+| 2026-10-18 | minor | Documented `window.vectorcraft`, the web build's control channel. |

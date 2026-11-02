@@ -9,7 +9,7 @@ Operate PhotoCraft through its structured automation interface. Preserve the use
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-10-08.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-02.
 
 Source: [PhotoCraft control protocol](https://raw.githubusercontent.com/storytold/photocraft/refs/heads/main/docs/control-protocol.md).
 

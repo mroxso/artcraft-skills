@@ -9,7 +9,7 @@ Operate VectorCraft through its structured automation interface, keeping the use
 
 ## References
 
-Read the relevant parts of [references/control-protocol.md](references/control-protocol.md) before constructing desktop calls. This is an unmodified upstream snapshot downloaded on 2026-10-08.
+Read the relevant parts of [references/control-protocol.md](references/control-protocol.md) before constructing desktop calls. This is an unmodified upstream snapshot downloaded on 2026-11-02.
 
 Source: [VectorCraft control protocol](https://raw.githubusercontent.com/storytold/vectorcraft/refs/heads/main/docs/control-protocol.md). The upstream documentation is distributed under the [bundled MIT license](references/LICENSE-MIT).
 

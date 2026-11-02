@@ -9,7 +9,7 @@ Operate FilmCraft through its structured automation interface, using the user's 
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is an unmodified upstream snapshot downloaded on 2026-10-08.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is an unmodified upstream snapshot downloaded on 2026-11-02.
 
 Source: [FilmCraft control protocol](https://raw.githubusercontent.com/storytold/filmcraft/refs/heads/main/docs/control-protocol.md). The upstream MIT license is included in [references/LICENSE-MIT](references/LICENSE-MIT).
 
