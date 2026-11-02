@@ -1,0 +1,3 @@
+interface:
+  display_name: "PdfCraft"
+  short_description: "Create and edit PDF documents and automate the PdfCraft application"

@@ -1,0 +1,3 @@
+interface:
+  display_name: "SoundCraft"
+  short_description: "Create and edit audio sessions and mixes and automate the SoundCraft application"

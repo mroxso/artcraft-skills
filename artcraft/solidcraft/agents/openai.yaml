@@ -1,0 +1,3 @@
+interface:
+  display_name: "SolidCraft"
+  short_description: "Build and edit parametric 3D CAD designs and automate the SolidCraft application"
