@@ -1,0 +1,3 @@
+interface:
+  display_name: "MaterialCraft"
+  short_description: "Build node-based procedural PBR materials and automate the MaterialCraft application"
