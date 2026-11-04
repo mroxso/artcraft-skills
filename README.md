@@ -4,7 +4,7 @@ AI agent skills for the ArtCraft software suite. Each skill teaches a coding age
 
 [![skills.sh](https://img.shields.io/endpoint?url=https://skills.sh/api/badge/mroxso/artcraft-skills)](https://skills.sh/mroxso/artcraft-skills)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![Skills](https://img.shields.io/badge/skills-15-blue)
+![Skills](https://img.shields.io/badge/skills-16-blue)
 [![Last commit](https://img.shields.io/github/last-commit/mroxso/artcraft-skills)](https://github.com/mroxso/artcraft-skills/commits)
 
 ## Available skills
@@ -26,13 +26,14 @@ AI agent skills for the ArtCraft software suite. Each skill teaches a coding age
 | [soundcraft](artcraft/soundcraft/SKILL.md) | [SoundCraft](https://github.com/storytold/soundcraft) | The control channel, CLI, and MCP surfaces, session inspection, track and clip targeting, time references, synthetic input ordering, and screenshot verification. |
 | [wordcraft](artcraft/wordcraft/SKILL.md) | [WordCraft](https://github.com/storytold/wordcraft) | Key authentication, multiple open documents, command discovery, text and style targeting, queued input, native printing, and page render verification. |
 | [materialcraft](artcraft/materialcraft/SKILL.md) | [MaterialCraft](https://github.com/storytold/materialcraft) | Live and headless sessions, command discovery, node graph editing, function graphs, view verification, texture export, and portable `.mcmat` materials. |
+| [texturecraft](artcraft/texturecraft/SKILL.md) | [TextureCraft](https://github.com/storytold/texturecraft) | Live and headless sessions, command discovery, texture sets and layer stacks, painting strokes, mesh-map baking, previews, texture export, and `.tcmat`/`.mcmat` materials. |
 
 ## Install
 
 Install with the [skills CLI](https://github.com/vercel-labs/skills):
 
 ```sh
-# all 15 skills
+# all 16 skills
 npx skills add mroxso/artcraft-skills
 
 # a single skill
@@ -71,7 +72,7 @@ A few skills ship extras: `solidcraft` includes a helper script (`scripts/sc.py`
 
 ## Attribution
 
-Every bundled reference is an unmodified snapshot of upstream documentation, downloaded on 2026-11-02 (`materialcraft` on 2026-11-03). Snapshots are copyright © 2026 ArtCraft Team and the respective contributors, distributed under the upstream MIT license reproduced in each skill's `references/LICENSE-MIT`. Relative documentation links inside a snapshot resolve against the upstream repository's `docs/` directory.
+Every bundled reference is an unmodified snapshot of upstream documentation, downloaded on 2026-11-02 (`materialcraft` on 2026-11-03, `texturecraft` on 2026-11-04). Snapshots are copyright © 2026 ArtCraft Team and the respective contributors, distributed under the upstream MIT license reproduced in each skill's `references/LICENSE-MIT`. Relative documentation links inside a snapshot resolve against the upstream repository's `docs/` directory.
 
 | Skill | Upstream source | Snapshotted files |
 | --- | --- | --- |
@@ -90,6 +91,7 @@ Every bundled reference is an unmodified snapshot of upstream documentation, dow
 | soundcraft | [storytold/soundcraft](https://github.com/storytold/soundcraft) | `control-protocol.md` |
 | wordcraft | [storytold/wordcraft](https://github.com/storytold/wordcraft) | `control-protocol.md` |
 | materialcraft | [storytold/materialcraft](https://github.com/storytold/materialcraft) | `control-protocol.md` |
+| texturecraft | [storytold/texturecraft](https://github.com/storytold/texturecraft) | `control-protocol.md` |
 
 SolidCraft snapshots are copyright © 2026 SolidCraft contributors.
 
