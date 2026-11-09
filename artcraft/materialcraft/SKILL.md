@@ -9,11 +9,11 @@ Operate MaterialCraft through its structured automation interface. Preserve the 
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-03.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-09.
 
 Source: [MaterialCraft control protocol](https://raw.githubusercontent.com/storytold/materialcraft/refs/heads/main/docs/control-protocol.md).
 
-Useful sections: the **Methods** table (which methods are headless-only vs app-only), **Key commands**, **Function graphs**, and **Portable materials (TextureCraft)**. Relative links inside the downloaded document refer to upstream documentation; resolve them against `https://github.com/storytold/materialcraft/blob/main/docs/` when needed. The document lists key commands, not the full library of 227 nodes: discover node definitions and parameters at runtime with `library.list` / `command.list` instead of inventing IDs.
+Useful sections: the **Methods** table (which methods are headless-only vs app-only), **Key commands**, **Linked packages**, **3D material assignment**, **Function graphs**, and **Portable materials (TextureCraft)**. Relative links inside the downloaded document refer to upstream documentation; resolve them against `https://github.com/storytold/materialcraft/blob/main/docs/` when needed. The document lists key commands, not the full library of 227 nodes: discover node definitions and parameters at runtime with `library.list` / `command.list` instead of inventing IDs.
 
 ## Locate the executables
 
@@ -48,7 +48,7 @@ Headless file access is workspace-scoped by launch-time roots (`--read-root` / `
 
 - Packages: `package.open {path}` / `package.save {path?}` (headless); the app saves through its own menus. `.mcmat` files open too (their source package, on its graph).
 - Bitmaps: `bitmap.import {path, name?}` embeds an image as a resource.
-- Texture maps: `outputs.export {dir, format?, pattern?, depth?, graph?}` cooks at full size and writes every output — PNG, JPEG, TGA, TIFF, BMP, WEBP, EXR or HDR at 8, 16 or 32 bits.
+- Texture maps: `outputs.export {dir, format?, pattern?, depth?, size?, graph?}` cooks at full size and writes every output — PNG, JPEG, TGA, TIFF, BMP, WEBP, EXR or HDR at 8, 16 or 32 bits.
 - Portable materials: `file.exportMaterial {path, graph?, size?, values?, inputs?}` writes a `.mcmat` for TextureCraft; `file.sendToTextureCraft {graph?}` exports into TextureCraft's library folder. In the workspace sandbox, exporting a `.mcmat` is CLI-only: `materialcraft-cli run package.mcraft file.exportMaterial '{"path": "out.mcmat", "size": 2048}'`.
 - Report successful saves and exports with the exact output path and format. Do not overwrite the user's source package unless asked; save a copy under a new name.
 

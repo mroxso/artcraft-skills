@@ -9,7 +9,7 @@ Operate FigCraft through its structured automation interface. Preserve the user'
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-02.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-09.
 
 Source: [FigCraft control protocol](https://raw.githubusercontent.com/storytold/figcraft/refs/heads/main/docs/control-protocol.md). The documentation is distributed under the [bundled MIT license](references/LICENSE-MIT). Relative links inside the snapshot (e.g. `mcp.md`) refer to upstream documentation; resolve those against `https://github.com/storytold/figcraft/blob/main/docs/` when needed. If installed behavior differs, inspect the installed command registry through `engine.commands` rather than inventing parameters.
 

@@ -9,7 +9,7 @@ Operate PdfCraft through its structured automation interfaces. Preserve the user
 
 ## References
 
-PdfCraft documents automation in two bundled snapshots, captured from upstream on 2026-11-02:
+PdfCraft documents automation in two bundled snapshots, captured from upstream on 2026-11-09:
 
 - [references/mcp.md](references/mcp.md) — the MCP server: startup flags, tool surface, and file-access confinement. Source: [PdfCraft MCP conventions](https://raw.githubusercontent.com/storytold/pdfcraft/refs/heads/main/docs/mcp.md).
 - [references/cli-batch.md](references/cli-batch.md) — `pdfcraft-cli batch` for convert, OCR, and optimize over files and folders. Source: [PdfCraft batch docs](https://raw.githubusercontent.com/storytold/pdfcraft/refs/heads/main/docs/cli-batch.md).

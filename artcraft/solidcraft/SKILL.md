@@ -9,7 +9,7 @@ Operate SolidCraft (an open-source parametric CAD app in Rust: desktop, web, hea
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls, and [references/mcp.md](references/mcp.md) for the MCP tool surface. These are downloaded upstream docs, captured from upstream `main` on 2026-11-02 for SolidCraft 0.30.x; upstream lives at [github.com/tangency-labs/solidcraft](https://github.com/tangency-labs/solidcraft) (`docs/`). Relative links inside them (e.g. `render-jobs.md`, `scripts.md`) resolve against `https://github.com/tangency-labs/solidcraft/blob/main/docs/`; `render-jobs.md` and `scripts.md` are also in `references/`. The protocol lists methods, not individual modelling commands: discover those at runtime instead of inventing command IDs or parameters.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls, and [references/mcp.md](references/mcp.md) for the MCP tool surface. These are downloaded upstream docs, captured from upstream `main` on 2026-11-09 for SolidCraft 0.40.x; upstream lives at [github.com/tangency-labs/solidcraft](https://github.com/tangency-labs/solidcraft) (`docs/`). Relative links inside them (e.g. `render-jobs.md`, `scripts.md`) resolve against `https://github.com/tangency-labs/solidcraft/blob/main/docs/`; `render-jobs.md` and `scripts.md` are also in `references/`. The protocol lists methods, not individual modelling commands: discover those at runtime instead of inventing command IDs or parameters.
 
 ## Locate the executables
 
@@ -28,7 +28,7 @@ Read the relevant sections of [references/control-protocol.md](references/contro
   SOLIDCRAFT_CONTROL_PORT=7878 /Applications/SolidCraft.app/Contents/MacOS/SolidCraft >/tmp/solidcraft.log 2>&1 &
   ```
 
-- **Bridged MCP** for an MCP-capable client: `solidcraft-cli mcp --connect 127.0.0.1:7878` (tools: `execute`, `batch`, `inspect_design`, `measure`, `body_topology`, `set_parameter`, `check_parameters`, `screenshot`, `compare_picture`, `export`, `open`, `save`, `new_design`, `undo`, `redo`, `list_commands`, `describe_command`, `pending`, `running`, `crash_reports`, `skill_reference`).
+- **Bridged MCP** for an MCP-capable client: `solidcraft-cli mcp --connect 127.0.0.1:7878` (add `--compact` or `SOLIDCRAFT_MCP_COMPACT=1` for byte-lean summaries when the design is large) (tools: `execute`, `batch`, `inspect_design`, `measure`, `body_topology`, `set_parameter`, `check_parameters`, `screenshot`, `compare_picture`, `export`, `open`, `save`, `new_design`, `undo`, `redo`, `list_commands`, `describe_command`, `pending`, `running`, `crash_reports`, `skill_reference`).
 - **Headless** (`solidcraft-cli mcp` with no `--connect`, or `solidcraft-cli run script.json`) has its own in-process design and cannot touch the user's open window. Use it for unattended file processing.
 
 Reuse a running instance when one exists (`pgrep -lf SolidCraft`) and keep the channel on loopback.
