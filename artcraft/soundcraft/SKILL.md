@@ -9,7 +9,7 @@ Operate SoundCraft through its structured automation interface. Preserve the use
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-02.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-09.
 
 Source: [SoundCraft control protocol](https://raw.githubusercontent.com/storytold/soundcraft/refs/heads/main/docs/control-protocol.md). The documentation is distributed under the [bundled MIT license](references/LICENSE-MIT). Relative links inside the snapshot (e.g. `cli.md`) resolve against `https://github.com/storytold/soundcraft/blob/main/docs/`. Discover command ids and parameter docs at runtime through `engine.commands` instead of inventing them.
 

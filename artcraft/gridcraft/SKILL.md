@@ -9,7 +9,7 @@ Operate GridCraft through its structured automation interface. Preserve the user
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-02.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-09.
 
 Source: [GridCraft control protocol](https://raw.githubusercontent.com/storytold/gridcraft/refs/heads/main/docs/control-protocol.md). The documentation is distributed under the [bundled MIT license](references/LICENSE-MIT). Relative links inside the snapshot (e.g. `mcp.md`, `cli.md`) resolve against `https://github.com/storytold/gridcraft/blob/main/docs/`. Discover installed command parameters through `engine.commands` rather than inventing them.
 

@@ -9,11 +9,11 @@ Operate PhotoCraft through its structured automation interface. Preserve the use
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-02.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-09.
 
 Source: [PhotoCraft control protocol](https://raw.githubusercontent.com/storytold/photocraft/refs/heads/main/docs/control-protocol.md).
 
-Useful sections: **Methods**, **Engine commands**, **Background jobs**, **MCP bridge**, **Headless server**, **Transport limits**, **Preferences**, **Snapping**, and **Camera Raw dialog**. Relative links inside the downloaded document refer to upstream documentation; resolve those against `https://github.com/storytold/photocraft/blob/main/docs/` when needed. If installed behavior differs, inspect the installed command registry and consult the source rather than inventing parameters.
+Useful sections: **Methods**, **Engine commands**, **Background jobs**, **MCP bridge**, **Headless server**, **Transport limits**, **Preferences**, **Snapping**, **Camera Raw dialog**, and **Frame Tool controls**. Relative links inside the downloaded document refer to upstream documentation; resolve those against `https://github.com/storytold/photocraft/blob/main/docs/` when needed. If installed behavior differs, inspect the installed command registry and consult the source rather than inventing parameters.
 
 ## Select the session
 

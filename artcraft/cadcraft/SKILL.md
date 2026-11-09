@@ -9,7 +9,7 @@ Operate CADCraft through its structured automation interface. Preserve the user'
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-02.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-09.
 
 Source: [CADCraft control protocol](https://raw.githubusercontent.com/storytold/cadcraft/refs/heads/main/docs/control-protocol.md).
 

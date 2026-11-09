@@ -9,11 +9,11 @@ Operate MaterialCraft through its structured automation interface. Preserve the 
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-03.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-09.
 
 Source: [MaterialCraft control protocol](https://raw.githubusercontent.com/storytold/materialcraft/refs/heads/main/docs/control-protocol.md).
 
-Useful sections: the **Methods** table (which methods are headless-only vs app-only), **Key commands**, **Function graphs**, and **Portable materials (TextureCraft)**. Relative links inside the downloaded document refer to upstream documentation; resolve them against `https://github.com/storytold/materialcraft/blob/main/docs/` when needed. The document lists key commands, not the full library of 227 nodes: discover node definitions and parameters at runtime with `library.list` / `command.list` instead of inventing IDs.
+Useful sections: the **Methods** table (which methods are headless-only vs app-only), **Key commands**, **Function graphs**, **Linked packages**, **3D material assignment**, and **Portable materials (TextureCraft)**. Relative links inside the downloaded document refer to upstream documentation; resolve them against `https://github.com/storytold/materialcraft/blob/main/docs/` when needed. The document lists key commands, not the full library of 227 nodes: discover node definitions and parameters at runtime with `library.list` / `command.list` instead of inventing IDs.
 
 ## Locate the executables
 

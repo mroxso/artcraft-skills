@@ -9,7 +9,7 @@ Operate DesignCraft through its structured automation interfaces, preserving edi
 
 ## References
 
-Read [references/control-protocol.md](references/control-protocol.md) before constructing desktop requests. It is an unmodified upstream snapshot downloaded on 2026-11-02.
+Read [references/control-protocol.md](references/control-protocol.md) before constructing desktop requests. It is an unmodified upstream snapshot downloaded on 2026-11-09.
 
 Source: [DesignCraft control protocol](https://raw.githubusercontent.com/storytold/designcraft/refs/heads/main/docs/control-protocol.md). The documentation is distributed under the [bundled MIT license](references/LICENSE-MIT). Relative links in the snapshot resolve against `https://github.com/storytold/designcraft/blob/main/docs/`.
 
