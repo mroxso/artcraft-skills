@@ -9,7 +9,7 @@ Operate GridCraft through its structured automation interface. Preserve the user
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-02.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-09.
 
 Source: [GridCraft control protocol](https://raw.githubusercontent.com/storytold/gridcraft/refs/heads/main/docs/control-protocol.md). The documentation is distributed under the [bundled MIT license](references/LICENSE-MIT). Relative links inside the snapshot (e.g. `mcp.md`, `cli.md`) resolve against `https://github.com/storytold/gridcraft/blob/main/docs/`. Discover installed command parameters through `engine.commands` rather than inventing them.
 
@@ -29,7 +29,7 @@ Inspect before editing: `document.inspect` (sheets, used ranges, tables, charts,
 
 Edit through `engine.execute {command, params}` with optional `window` (window id) or `doc` (workbook id) to target a specific window; the active window stays in front. Use real cell references and ranges (`cell.set` with `input: "=SUM(A1:A9)"`, `selection.set`, `edit.goTo`). Prefer structured commands over synthetic input; `ui.click`, `ui.cell.click`, `ui.key`, and the `ui.edit.*` methods drive the grid when interaction is intended, under a shared synthetic-input budget. Dialogs are opened, filled, and confirmed with `ui.dialog`, `ui.dialog.set`, `ui.dialog.confirm`, `ui.dialog.cancel`; a Goal Seek dialog is driven with its own `data.goalSeek` command after reading and cancelling.
 
-Multiple windows per workbook are normal: `window.list` shows `{window, doc, index, title, dirty, active, hidden}`; `window.activate`, `window.close {force?}`, and `file.close` manage them. Floating objects (chart, image, shape, equation, slicer) are selected with `ui.object.select` and arranged with `object.*` and `arrange.*` commands.
+Multiple windows per workbook are normal: `window.list` shows `{window, doc, index, title, dirty, active, hidden}`; `window.activate`, `window.close {force?}`, and `file.close` manage them. Floating objects (chart, image, shape, equation, slicer, control) are selected with `ui.object.select` and arranged with `object.*` and `arrange.*` commands; form controls (buttons, sliders, spin buttons) are listed by `control.list` and driven with `control.setValue` and `control.press`.
 
 Verify with `ui.screenshot` (settles animations first; bounded budgets — prefer a `path` for large captures) and by re-reading `sheet.read`/`cell.get` after edits.
 

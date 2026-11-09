@@ -9,7 +9,7 @@ Operate EffectCraft through its structured automation interfaces, using the user
 
 ## References
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing desktop calls. This is an unmodified snapshot downloaded on 2026-11-02 from the [upstream control protocol](https://raw.githubusercontent.com/storytold/effectcraft/refs/heads/main/docs/control-protocol.md). The upstream MIT license is included in [references/LICENSE-MIT](references/LICENSE-MIT).
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing desktop calls. This is an unmodified snapshot downloaded on 2026-11-09 from the [upstream control protocol](https://raw.githubusercontent.com/storytold/effectcraft/refs/heads/main/docs/control-protocol.md). The upstream MIT license is included in [references/LICENSE-MIT](references/LICENSE-MIT).
 
 Search the reference for `Engine`, `UI state`, `Input`, `Locating things`, or `Screenshots`. Relative documentation links resolve against `https://github.com/storytold/effectcraft/blob/main/docs/`.
 
@@ -67,6 +67,6 @@ Save the editable `.ecproj` separately from exported media. MCP provides `save_p
 
 Use `render.frame` (desktop) or `render_frame` (MCP) to inspect frames at representative times, including animation boundaries and transitions. Desktop frames are independent of viewer zoom/resolution; `max_side: 0` gives full size. MCP `transparent: true` preserves alpha for inspection. Use `ui.screenshot` for panel or UI evidence. A frame preview is not a finished video export.
 
-Discover render queue/export schemas and supported formats with command discovery and capabilities. Set the intended comp, output path, time range, dimensions, and alpha requirements explicitly. Wait for `renderQueue.render {wait: true}` where supported, or poll the relevant job/status until completion; likewise inspect status for tracking or roto jobs before saving or applying results. Check background footage validation after opening a project and report missing media affecting the result.
+Discover render queue/export schemas and supported formats with command discovery and capabilities. Set the intended comp, output path, time range, dimensions, and alpha requirements explicitly. Wait for `renderQueue.render {wait: true}` where supported, or poll the relevant job/status until completion; a waited desktop render keeps the window responsive but blocks other requests on the same connection, so use another connection to inspect progress or stop the render; likewise inspect status for tracking or roto jobs before saving or applying results. Check background footage validation after opening a project and report missing media affecting the result.
 
 Verify exported files exist, are readable, and match the requested format and duration; inspect representative frames and alpha when relevant. Review warnings for Lottie or timeline interchange rather than treating an existing file as proof of fidelity. Report actual saved/exported paths and any unfinished jobs, missing media, or unsupported features.

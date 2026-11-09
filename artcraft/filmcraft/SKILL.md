@@ -9,7 +9,7 @@ Operate FilmCraft through its structured automation interface, using the user's 
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is an unmodified upstream snapshot downloaded on 2026-11-02.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is an unmodified upstream snapshot downloaded on 2026-11-09.
 
 Source: [FilmCraft control protocol](https://raw.githubusercontent.com/storytold/filmcraft/refs/heads/main/docs/control-protocol.md). The upstream MIT license is included in [references/LICENSE-MIT](references/LICENSE-MIT).
 
@@ -46,7 +46,7 @@ Time uses integer ticks: **254,016,000,000 ticks per second**. Use documented `s
 
 Before moving clips, inspect linked partners, locked tracks, and destination overlaps. `timeline.move` can overwrite destination material or insert with `insert`; linked partners move by the same offset by default. Use `linked: false` only when moving exactly the named clips is intended. Check the returned `moved` IDs and resulting timing, including audio sync and any shift away from negative sequence time.
 
-For replacement edits, inspect `short` and `sourceInClamped` results: successful replacement may hold the last frame past available media or clamp a retained source In. For dynamic trim operations, provide the documented clock in seconds and finish or cancel the trim gesture before continuing. Read the audio or color sections for mixer automation, ducking, LUTs, or HDR work; preserve unrelated sequence settings.
+For replacement edits, inspect `short` and `sourceInClamped` results: successful replacement may hold the last frame past available media or clamp a retained source In. For dynamic trim operations, provide the documented clock in seconds and finish or cancel the trim gesture before continuing. Read the audio or color sections for mixer automation, ducking, LUTs, or HDR work; a graded clip's Color Grading result can be exported as a 3D `.cube` LUT with `lumetri.exportCube`. Preserve unrelated sequence settings.
 
 For dialogs and gestures, inspect `ui.elements` and prefer returned stable element IDs. Use `ui.set` for documented dialog and view fields, and `ui.timeline.locate` / `ui.timeline.hit` for timeline positioning. Refresh inspection after layout changes. `ui.type` targets the focused field. Only `ui.focus` explicitly takes the user's keyboard focus; invoke it when the task needs activation.
 

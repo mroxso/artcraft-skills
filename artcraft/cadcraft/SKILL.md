@@ -9,7 +9,7 @@ Operate CADCraft through its structured automation interface. Preserve the user'
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-02.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-09.
 
 Source: [CADCraft control protocol](https://raw.githubusercontent.com/storytold/cadcraft/refs/heads/main/docs/control-protocol.md).
 
@@ -55,7 +55,7 @@ Use `ui.menu.invoke` only when interactive menu behavior is intended. `ui.pointe
 
 Panel layout (`ui.dock`, `ui.dock.reset`, panel IDs `toolSets`, `layers`, `properties`, `externalReferences`; the `canvas` is protected) is invoked through `engine.execute` and does not edit document contents. Change layout, theme, or interface language only when the task requires it.
 
-Verify visually and structurally: re-run `drawing.inspect` (entities carry handles and geometry) and render with `ui.render` — a headless render that frames the whole drawing by default (`fit: false` keeps the current view) and returns `pngBase64`, or pass `path`. `ui.screenshot` captures the app window and needs a presented frame.
+Verify visually and structurally: re-run `drawing.inspect` (entities carry handles and geometry) and render with `ui.render` — a headless render that frames the whole drawing by default (`fit: false` keeps the current view, `window` shows just an area), returns `pngBase64`, or pass `path`; `background` picks the canvas colour and `plot_style` applies a plot style table such as `monochrome.ctb`. `ui.screenshot` captures the app window and needs a presented frame.
 
 ## File access and output
 

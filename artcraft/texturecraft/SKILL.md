@@ -9,7 +9,7 @@ Operate TextureCraft through its structured automation interface. Preserve the u
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-04.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-09.
 
 Source: [TextureCraft control protocol](https://raw.githubusercontent.com/storytold/texturecraft/refs/heads/main/docs/control-protocol.md).
 
@@ -35,11 +35,11 @@ The control channel requires an `auth` request first on every connection: token 
 
 Inspect before editing: `session.inspect` returns the project, mesh, texture sets, the layer stack with every layer, mask, effect and fill source, painted tile counts, the tool, camera, display and history — an agent can verify most work without a screenshot. `project.inspect` shows a `.mcmat` fill layer's `link` (the MaterialCraft graph's exposed inputs, presets and image inputs).
 
-Edit through engine commands via `command.run`: `project.new {mesh?, resolution?, name?, template?}` (built-in meshes: `material_ball`, `sphere`, `cube`, `rounded_cube`, `cylinder`, `torus`, `plane`, `crate`), `layer.add.fill {color?, roughness?, metallic?, …}`, `layer.add.image`, `mask.add.black`, `effect.add.generator {generator: "edgeWear"|…}`, `textureSet.meshMap.set` / `textureSet.meshMap.clear` for imported mesh maps, `bake.run {resolution?, maps?}`, `material.apply {material}`, and painting through `tool.stroke` (or the MCP `paint_stroke` tool, whose points are viewport pixels). `edit.undo {steps?}` / `edit.redo {steps?}` move through history; any command accepts `merge: true` to fold its edit into the previous undo step.
+Edit through engine commands via `command.run`: `project.new {mesh?, resolution?, name?, template?}` (built-in meshes: `material_ball`, `sphere`, `cube`, `rounded_cube`, `cylinder`, `torus`, `plane`, `crate`), `layer.add.fill {color?, roughness?, metallic?, …}`, `layer.add.image`, `mask.add.black`, `effect.add.generator {generator: "edgeWear"|…}`, `textureSet.meshMap.set` / `textureSet.meshMap.clear` for imported mesh maps, `bake.run {resolution?, maps?}` (exclude single UV tiles with `bake.tile.set`, patch bake settings field-wise with `bake.settings {ts?, patch}`), `material.apply {material}`, and painting through `tool.stroke` (or the MCP `paint_stroke` tool, whose points are viewport pixels). `edit.undo {steps?}` / `edit.redo {steps?}` move through history; any command accepts `merge: true` to fold its edit into the previous undo step.
 
 Commands run programmatically and never open dialogs. Use `ui.menu.invoke` only when interactive menu behavior is intended. In the app, `ui.set` can change layout, dock, preferences (language, brightness, accent) and keymap; `debug.paintTest` and `debug.frames` exist for performance work.
 
-Verify visually and structurally: re-run `session.inspect`, then render — `viewport.screenshot {view: "3d"|"2d"}` (app), `viewport_render` (MCP; `samples` up to 4096 path-traces the 3D view), `render` (JSON-lines), or `texturecraft-cli render project.tcraft out.png --size 1280x800 --yaw 30 --pitch 15` (CLI). Stroke points and render sizes share one space: the default render size is the session viewport (1280×800), so `paint_stroke` points can be read straight off a `viewport_render` image.
+Verify visually and structurally: re-run `session.inspect`, then render — `viewport.screenshot {view: "3d"|"2d"}` (app), `viewport_render` (MCP; `samples` up to 4096 path-traces the 3D view), `render` (JSON-lines), or `texturecraft-cli render project.tcraft out.png --size 1280x800 --yaw 30 --pitch 15` (CLI). Saved camera bookmarks (`camera.add` / `camera.list` / `camera.select`) pin repeatable views. Stroke points and render sizes share one space: the default render size is the session viewport (1280×800), so `paint_stroke` points can be read straight off a `viewport_render` image.
 
 ## File access and output
 

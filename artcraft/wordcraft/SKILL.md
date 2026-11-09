@@ -9,7 +9,7 @@ Operate WordCraft through its structured automation interface. Preserve the user
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-02.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-09.
 
 Source: [WordCraft control protocol](https://raw.githubusercontent.com/storytold/wordcraft/refs/heads/main/docs/control-protocol.md). The documentation is distributed under the [bundled MIT license](references/LICENSE-MIT). Relative links inside the snapshot (e.g. `mcp.md`, `recovery.md`) resolve against `https://github.com/storytold/wordcraft/blob/main/docs/`. Discover command ids and parameter docs through `engine.commands` instead of inventing them.
 
@@ -35,4 +35,4 @@ Verify with `ui.render {page?, scale?, doc?}` (engine-rendered page PNG, no wind
 
 ## Printing and export
 
-Native printing: `ui.printSettings` inspects and configures the printer (`refresh` starts discovery; set `printer`, `copies`, `duplex`, `grayscale`), and `ui.printSubmit` submits the print-ready PDF without a dialog, accepting `range`, `pages`, `parity`, `copies`, `collate`, and `paper` (Scale to Paper Size; the document's page size is unchanged). Poll `ui.printSettings` until `busy` is false and check `status`/`detail`. `file.printPdf` exports PDF; invalid ranges submit no job.
+Native printing: `ui.printSettings` inspects and configures the printer (`refresh` starts discovery; set `printer`, `copies`, `duplex`, `grayscale`), and `ui.printSubmit` submits the print-ready PDF without a dialog, accepting `range`, `pages`, `parity`, `copies`, `collate`, `paper` (Scale to Paper Size; the document's page size is unchanged), and `pagesPerSheet` (1/2/4/6/9/16-up or `"booklet"` / `"bookletReverse"` sheet layouts). Poll `ui.printSettings` until `busy` is false and check `status`/`detail`. `file.printPdf` exports PDF; invalid ranges submit no job.
