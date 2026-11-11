@@ -4,7 +4,7 @@ AI agent skills for the ArtCraft software suite. Each skill teaches a coding age
 
 [![skills.sh](https://img.shields.io/endpoint?url=https://skills.sh/api/badge/mroxso/artcraft-skills)](https://skills.sh/mroxso/artcraft-skills)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![Skills](https://img.shields.io/badge/skills-16-blue)
+![Skills](https://img.shields.io/badge/skills-17-blue)
 [![Last commit](https://img.shields.io/github/last-commit/mroxso/artcraft-skills)](https://github.com/mroxso/artcraft-skills/commits)
 
 ## Available skills
@@ -27,13 +27,14 @@ AI agent skills for the ArtCraft software suite. Each skill teaches a coding age
 | [wordcraft](artcraft/wordcraft/SKILL.md) | [WordCraft](https://github.com/storytold/wordcraft) | Key authentication, multiple open documents, command discovery, text and style targeting, queued input, native printing, and page render verification. |
 | [materialcraft](artcraft/materialcraft/SKILL.md) | [MaterialCraft](https://github.com/storytold/materialcraft) | Live and headless sessions, command discovery, node graph editing, function graphs, view verification, texture export, and portable `.mcmat` materials. |
 | [texturecraft](artcraft/texturecraft/SKILL.md) | [TextureCraft](https://github.com/storytold/texturecraft) | Live and headless sessions, command discovery, texture sets and layer stacks, painting strokes, mesh-map baking, previews, texture export, and `.tcmat`/`.mcmat` materials. |
+| [anicraft](artcraft/anicraft/SKILL.md) | [AniCraft](https://github.com/storytold/anicraft) | MCP and headless CLI sessions, command discovery, stage and timeline editing, keyframes and tweens, symbols and library, frame rendering, and export verification. |
 
 ## Install
 
 Install with the [skills CLI](https://github.com/vercel-labs/skills):
 
 ```sh
-# all 16 skills
+# all 17 skills
 npx skills add mroxso/artcraft-skills
 
 # a single skill
@@ -62,7 +63,7 @@ artcraft/
     └── references/         # upstream documentation snapshots + LICENSE-MIT
 ```
 
-A few skills ship extras: `solidcraft` includes a helper script (`scripts/sc.py`), and `pdfcraft` bundles MCP and CLI-batch references instead of a control protocol.
+A few skills ship extras: `solidcraft` includes a helper script (`scripts/sc.py`), and `pdfcraft` and `anicraft` bundle MCP references instead of a control protocol (`pdfcraft` also ships a CLI-batch reference).
 
 ## Contributing
 
@@ -92,6 +93,7 @@ Every bundled reference is an unmodified snapshot of upstream documentation, dow
 | wordcraft | [storytold/wordcraft](https://github.com/storytold/wordcraft) | `control-protocol.md` |
 | materialcraft | [storytold/materialcraft](https://github.com/storytold/materialcraft) | `control-protocol.md` |
 | texturecraft | [storytold/texturecraft](https://github.com/storytold/texturecraft) | `control-protocol.md` |
+| anicraft | [storytold/anicraft](https://github.com/storytold/anicraft) | `mcp.md` |
 
 SolidCraft snapshots are copyright © 2026 SolidCraft contributors.
 
