@@ -9,7 +9,7 @@ Operate SolidCraft (an open-source parametric CAD app in Rust: desktop, web, hea
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls, and [references/mcp.md](references/mcp.md) for the MCP tool surface. These are downloaded upstream docs, captured from upstream `main` on 2026-11-09 for SolidCraft 0.40.x; upstream lives at [github.com/tangency-labs/solidcraft](https://github.com/tangency-labs/solidcraft) (`docs/`). Relative links inside them (e.g. `render-jobs.md`, `scripts.md`) resolve against `https://github.com/tangency-labs/solidcraft/blob/main/docs/`; `render-jobs.md` and `scripts.md` are also in `references/`. The protocol lists methods, not individual modelling commands: discover those at runtime instead of inventing command IDs or parameters.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls, and [references/mcp.md](references/mcp.md) for the MCP tool surface. These are downloaded upstream docs, captured from upstream `main` on 2026-11-11 for SolidCraft 0.40.x; upstream lives at [github.com/tangency-labs/solidcraft](https://github.com/tangency-labs/solidcraft) (`docs/`). Relative links inside them (e.g. `render-jobs.md`, `scripts.md`) resolve against `https://github.com/tangency-labs/solidcraft/blob/main/docs/`; `render-jobs.md` and `scripts.md` are also in `references/`. The protocol lists methods, not individual modelling commands: discover those at runtime instead of inventing command IDs or parameters.
 
 ## Locate the executables
 
@@ -28,7 +28,9 @@ Read the relevant sections of [references/control-protocol.md](references/contro
   SOLIDCRAFT_CONTROL_PORT=7878 /Applications/SolidCraft.app/Contents/MacOS/SolidCraft >/tmp/solidcraft.log 2>&1 &
   ```
 
-- **Bridged MCP** for an MCP-capable client: `solidcraft-cli mcp --connect 127.0.0.1:7878` (add `--compact` or `SOLIDCRAFT_MCP_COMPACT=1` for byte-lean summaries when the design is large) (tools: `execute`, `batch`, `inspect_design`, `measure`, `body_topology`, `set_parameter`, `check_parameters`, `screenshot`, `compare_picture`, `export`, `open`, `save`, `new_design`, `undo`, `redo`, `list_commands`, `describe_command`, `pending`, `running`, `crash_reports`, `skill_reference`).
+  A plain launch keeps the control channel **off** by default; `--control PORT` or `SOLIDCRAFT_CONTROL_PORT` opens it for that run, or turn it on under Preferences › Assistant › Agents through MCP › "Let AI agents connect" (takes effect at once).
+
+- **Bridged MCP** for an MCP-capable client: `solidcraft-cli mcp --connect 127.0.0.1:7878` (add `--compact` or `SOLIDCRAFT_MCP_COMPACT=1` for byte-lean summaries when the design is large) (tools: `execute`, `batch`, `inspect_design`, `measure`, `body_topology`, `set_parameter`, `check_parameters`, `screenshot`, `compare_picture`, `export`, `open`, `save`, `new_design`, `undo`, `redo`, `list_commands`, `describe_command`, `pending`, `running`, `cancel`, `crash_reports`, `skill_reference`).
 - **Headless** (`solidcraft-cli mcp` with no `--connect`, or `solidcraft-cli run script.json`) has its own in-process design and cannot touch the user's open window. Use it for unattended file processing.
 
 Reuse a running instance when one exists (`pgrep -lf SolidCraft`) and keep the channel on loopback.
@@ -63,13 +65,13 @@ For real UI work (a dialog the engine cannot reach, or showing the user a workfl
 
 ## Files, export, and access rules
 
-`file.new`, `doc.open {path}`, `file.save [path]`, `file.export {path, format}` (step, 3mf, 3mf-tagged, stl, stla, obj, urdf); STEP opens as an Import base feature, 3MF/STL as mesh bodies, and `up: "y"` stands a Y-up file upright. Report the exact path and format written. Do not overwrite the user's source design unless asked — save a copy under a new name.
+`file.new`, `doc.open {path}`, `file.save [path]`, `file.export {path, format}` (step, stp, iges, igs, 3mf, 3mf-tagged, stl, stla, obj, glb, urdf); STEP opens as an Import base feature, 3MF/STL as mesh bodies, and `up: "y"` stands a Y-up file upright. Report the exact path and format written. Do not overwrite the user's source design unless asked — save a copy under a new name.
 
 The MCP server restricts file paths to the open design's folder (only when strictly inside your home folder and not in a hidden folder), SolidCraft's recovery folder, and its scratch folder; widen with `--allow-path DIR` (repeatable) or lift with `--allow-any-path`. Raw control requests are unlimited for a token holder; a request may pass `allow_paths` to confine itself.
 
 ## Slow commands, timeouts, and uncertain outcomes
 
-A request unanswered for 60 s (3600 s for `engine.batch`) replies `timeout: … is still running`. **That is not a failure** — the command may still apply, so never blindly resend a mutation. Ask `control.running` (whole app, never blocks) and `control.pending` (this connection's outstanding request, then its reply once, exactly once); while one is pending every other request on that connection replies `busy`. `solidcraft-cli mcp` and `scripts/sc.py` wait far longer than 60 s on the socket, so bridged calls usually just answer late. Render jobs (`render.start`/`status`/`cancel`/`export`) are the non-blocking path for product images.
+A request unanswered for 60 s (3600 s for `engine.batch`) replies `timeout: … is still running`. **That is not a failure** — the command may still apply, so never blindly resend a mutation. Ask `control.running` (whole app, never blocks) and `control.pending` (this connection's outstanding request, then its reply once, exactly once); while one is pending every other request on that connection replies `busy`. A request that outlived its wait can be cancelled from its own connection with `control.cancel {id?}` (MCP `cancel`): one still queued is removed and never runs, one computing off the window thread stops with nothing applied; one running on the window thread cannot be cancelled. `solidcraft-cli mcp` and `scripts/sc.py` wait far longer than 60 s on the socket, so bridged calls usually just answer late. Render jobs (`render.start`/`status`/`cancel`/`export`) are the non-blocking path for product images.
 
 ## Headless and scripts
 

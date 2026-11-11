@@ -104,9 +104,11 @@ keeps its state in a throwaway file.
 | `command.run` | `{id, params?}` | the command's JSON result |
 | `command.list` | `{filter?}` | `[{id, label, menu, shortcut, params, enabled}]` |
 | `session.inspect` | | project, mesh, texture sets, layer stack, tool, camera, display, history |
-| `ui.inspect` | | UI state, viewport rect, fps, bake progress, toasts, `titleBar` (who draws the title bar this run: `app`, `integrated` on macOS, or `system`) |
+| `ui.inspect` | | UI state, viewport rect, fps, bake progress (`baking`, 0..1), the running bake's stage (`bakeStatus`, e.g. "Baking Ambient Occlusion (2/4)") and live preview (`bakePreview`, see *Live bake preview*), toasts, `titleBar` (who draws the title bar this run: `app`, `integrated` on macOS, or `system`) |
 | `ui.menu.list` | | the menu catalog: `{menu, submenu, label, id, shortcut, implemented, enabled}` |
 | `ui.menu.invoke` | `{id}` | behaves like a menu click (may open a window) |
+| `ui.bake.start` | `{ts?: index \| [indices]}` (default: the sets ticked in Bake mode) | Opens Bake mode and bakes in the background like the Bake button: the 3D view shows the maps landing on the model as they finish (see *Live bake preview*). → the `bake.preview` state. Errors when a bake is already running |
+| `ui.bake.cancel` | | Stops the running bake; the set being baked keeps the maps it had, sets already finished stay applied, and the previous view mode comes back |
 | `ui.set` | fields of the UI state, e.g. `{"layout": "Only3D"}`; `dock` is the panel layout, a craft-ui docking `Workspace` (`{version, layout: {root, floating}, hidden}`; `root` is a tree of `Split`, `Tabs` and `Stack` nodes over the panels `Viewport`, `Assets`, `TextureSetList`, `Layers`, `TextureSetSettings`, `Properties`, `Display`, `Shader`, `History` and `Log`; `hidden` lists where each closed panel was, so reopening it puts it back; a layout that does not read or has no docked `Viewport` becomes the default), `prefs` the settings (`{"language": "ja", "viewport_texture": 1, "brightness": "light", "accent": "blue"}`; missing fields take their defaults; `brightness` is `dark`, `mediumDark` (default), `mediumLight` or `light`, `accent` `copper` (default), `coral`, `blue`, `violet`, `green`, `amber` or `pink`, applied on the next frame; `system_title_bar` `true` has the system draw the title bar from the next start), `keymap` the custom shortcuts (`{"file.save": "F5"}`, `""` unbinds) | `null` |
 | `viewport.screenshot` | `{view?: "3d" \| "2d"}` | `{width, height, png}` (PNG, base64) |
 | `ui.screenshot` | | `{width, height, png}` of the whole window, after the next frame |
@@ -127,6 +129,41 @@ Example session:
 < {"id":3,"ok":true,"result":{"width":1210,"height":788,"png":"iVBORw0KGgo…"}}
 ```
 
+### Live bake preview
+
+A bake started in the app (`ui.bake.start`, or the Bake button) makes the mesh maps one after
+another, in the `BakedMap` order of the set's enabled maps, and shows each one on the model as
+soon as it is finished and padded: the 3D view displays the newest finished map raw (normals as
+RGB, scalar maps as gray, ID maps as their colors), maps and texture sets not baked yet show their
+neutral value, and the bake bar names the stage (`Baking Ambient Occlusion (2/4)`). Each map is a
+bake of its own, so with a high poly the transfer rays are cast once per map; the pixels are the
+same as a single bake's. `bake.run` and the CLI bake all maps at once and never show a preview.
+
+The streamed maps are held by the session, not the document: nothing enters the undo history
+until a texture set's bake is applied (one undo step); a cancelled bake leaves the set it was baking
+as it was, while sets that finished before the cancel stay applied. When
+the bake ends, is cancelled or Bake mode is left, the view mode that was in use comes back.
+Bake setup overlays are hidden during the preview so they cannot cover the maps; their visibility
+settings take effect again when the preview ends.
+**Painting is paused while a bake is shown**: strokes and polygon fills fail with "Painting is paused while a bake
+is shown. Cancel the bake or wait for it to finish."
+
+`bake.preview` `{show?: "follow" \| "material" \| "map:<id>"}` reads and sets what the view shows
+(also the control in the bake bar): `follow` (default) the newest finished map, `material` the lit
+material, `map:<id>` one map pinned (neutral until it is baked). Picking a mesh map with
+`viewport.view` during a bake pins it; any other view mode is kept for when the bake ends. Result,
+also `session.inspect`'s `bakePreview`:
+
+```json
+{"active": true, "show": "follow", "shown": "ambientOcclusion", "newest": "ambientOcclusion",
+ "restore": "Material", "stage": {"set": 0, "map": "curvature", "n": 3, "total": 4},
+ "sets": [{"set": 0, "order": ["id", "ambientOcclusion", "curvature", "height"], "done": ["id", "ambientOcclusion"]}]}
+```
+
+`{"active": false}` when no bake is shown; setting `show` then is an error. Drive a bake with
+`ui.bake.start` and poll `ui.inspect`'s `bakeStatus` / `bakePreview` (and `viewport.screenshot`)
+until `baking` is `null`.
+
 A minimal client (Python, for illustration):
 
 ```python
@@ -144,6 +181,15 @@ def call(method, params=None, _id=[0]):
 call("auth", {"token": token})
 print(call("command.run", {"id": "layer.add.fill", "params": {"color": [0.8, 0.1, 0.1]}}))
 ```
+
+The UI's `prefs.project_open_limit_gib` sets the maximum decompressed project data accepted on open
+(default 8 GiB, minimum 1 GiB). Set it with `ui.set {"prefs":{"project_open_limit_gib":16}}`;
+it takes effect before the next control request, without waiting for a frame, and persists with
+the UI preferences. Individual entry limits still apply. This controls opening only, independently
+of `prefs.reserved_cores` and `prefs.save_ram_percent` for saving.
+Settings bounds the reserved-core input to the available logical CPU count and shows the estimated
+save budget in GiB beside the RAM percentage. The readout refreshes once a second from currently
+available RAM; a save calculates its budget when it starts.
 
 ## MCP server
 

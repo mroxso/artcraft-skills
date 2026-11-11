@@ -9,7 +9,7 @@ Operate WordCraft through its structured automation interface. Preserve the user
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-09.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-11.
 
 Source: [WordCraft control protocol](https://raw.githubusercontent.com/storytold/wordcraft/refs/heads/main/docs/control-protocol.md). The documentation is distributed under the [bundled MIT license](references/LICENSE-MIT). Relative links inside the snapshot (e.g. `mcp.md`, `recovery.md`) resolve against `https://github.com/storytold/wordcraft/blob/main/docs/`. Discover command ids and parameter docs through `engine.commands` instead of inventing them.
 
@@ -23,7 +23,7 @@ Send one JSON object per line; each gets one reply line, matched by `id`; check 
 
 ## Documents and targeting
 
-Several documents can be open, each with a stable id. `ui.inspect` reports `document` and `documents` (`id`, `title`, `path`, `dirty`, `active`). `file.new` and `file.open` open a document in its own window and make it active (`file.open` on an already-open file returns `alreadyOpen: true`); `view.switchWindows {id}` activates one; `file.closeDocument {id?, force?}` closes one. `engine.execute`, `document.inspect`, and `ui.render` take `doc` to work on a background document without changing the active window; window and input methods act on the active window only. `file.close` never shows a Save prompt: with unsaved changes it errors — save first or pass `{"force": true}` deliberately.
+Several documents can be open, each with a stable id. `ui.inspect` reports `document` and `documents` (`id`, `title`, `path`, `dirty`, `active`). `file.new` and `file.open` open a document in its own window and make it active (`file.open` on an already-open file returns `alreadyOpen: true`); `view.switchWindows {id}` activates one, or `{window: key}` selects a specific window directly (for Side by Side an id from `ui.inspect` → `windows.others`, for Switch Windows an open window's key); `file.closeDocument {id?, force?}` closes one. `engine.execute`, `document.inspect`, and `ui.render` take `doc` to work on a background document without changing the active window; window and input methods act on the active window only. `file.close` never shows a Save prompt: with unsaved changes it errors — save first or pass `{"force": true}` deliberately.
 
 ## Inspect, edit, and verify
 
@@ -31,7 +31,7 @@ Inspect before editing: `document.inspect {text?, doc?}` for blocks, styles, run
 
 Input methods (`ui.click`, `ui.clickText` with 0-based page and page-point coordinates, `ui.press`/`ui.release`, `ui.wheel`, `ui.key`, `ui.text`) go to the active window's focused widget and reply `{"queued": true}` when queued, not when applied — inspect the resulting state before dependent edits and never replay an edit just because its effect was not immediate.
 
-Verify with `ui.render {page?, scale?, doc?}` (engine-rendered page PNG, no window needed) or `ui.screenshot` (window state, dialogs, balloons). Report saved and exported paths and material warnings.
+Verify with `ui.render {page?, scale?, doc?}` (engine-rendered page PNG, no window needed) or `ui.screenshot` (window state, dialogs, balloons; with several document windows open it captures only the root-viewport window and errors on a secondary one, naming the root window key — select it with `view.switchWindows {"window": root}` and retry). Report saved and exported paths and material warnings.
 
 ## Printing and export
 
