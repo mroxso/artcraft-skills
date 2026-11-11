@@ -9,11 +9,11 @@ Operate TextureCraft through its structured automation interface. Preserve the u
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-09.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-11.
 
 Source: [TextureCraft control protocol](https://raw.githubusercontent.com/storytold/texturecraft/refs/heads/main/docs/control-protocol.md).
 
-Useful sections: the **Control channel** method table, the **MCP server** tool table, **MaterialCraft materials**, and **CLI**. Relative links inside the downloaded document refer to upstream documentation; resolve them against `https://github.com/storytold/texturecraft/blob/main/docs/` when needed. The document lists example commands, not the full command library: discover command ids, labels, parameter docs and current enabled state at runtime with `command.list {filter?}` (MCP: `command_list`) instead of inventing ids.
+Useful sections: the **Control channel** method table, **Live bake preview**, the **MCP server** tool table, **MaterialCraft materials**, and **CLI**. Relative links inside the downloaded document refer to upstream documentation; resolve them against `https://github.com/storytold/texturecraft/blob/main/docs/` when needed. The document lists example commands, not the full command library: discover command ids, labels, parameter docs and current enabled state at runtime with `command.list {filter?}` (MCP: `command_list`) instead of inventing ids.
 
 ## Locate the executables
 

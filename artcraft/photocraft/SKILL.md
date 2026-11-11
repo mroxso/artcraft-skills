@@ -9,7 +9,7 @@ Operate PhotoCraft through its structured automation interface. Preserve the use
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-09.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-11.
 
 Source: [PhotoCraft control protocol](https://raw.githubusercontent.com/storytold/photocraft/refs/heads/main/docs/control-protocol.md).
 
@@ -35,7 +35,7 @@ photocraft-cli mcp --bridge 127.0.0.1:7878 \
   --control-token-file /private/path/photocraft-control.token
 ```
 
-Reuse a running session when possible. Keep TCP on loopback and credentials in a private token file; do not print, commit, or expose tokens in command arguments. Raw TCP requires an `auth` request first on every connection, then one JSON object per line with a unique `id`; match replies by ID and check `ok`. Stdio `serve` does not need the TCP authentication handshake.
+Reuse a running session when possible. Keep TCP on loopback and credentials in a private token file; do not print, commit, or expose tokens in command arguments. Raw TCP requires authentication first on every connection: either the token-free challenge handshake (`auth.challenge` with a client nonce, then `auth {proof}` — what `photocraft-cli mcp --bridge` uses), or a plain `auth {token}` request, still accepted, only when the client knows the app is the listener. Then one JSON object per line with a unique `id`; match replies by ID and check `ok`. Stdio `serve` does not need the TCP authentication handshake.
 
 ## Inspect, edit, and verify
 
