@@ -9,16 +9,16 @@ Operate PhotoCraft through its structured automation interface. Preserve the use
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-11.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-15.
 
 Source: [PhotoCraft control protocol](https://raw.githubusercontent.com/storytold/photocraft/refs/heads/main/docs/control-protocol.md).
 
-Useful sections: **Methods**, **Engine commands**, **Background jobs**, **MCP bridge**, **Headless server**, **Transport limits**, **Preferences**, **Snapping**, **Frame Tool controls**, and **Camera Raw dialog**. Relative links inside the downloaded document refer to upstream documentation; resolve those against `https://github.com/storytold/photocraft/blob/main/docs/` when needed. If installed behavior differs, inspect the installed command registry and consult the source rather than inventing parameters.
+Useful sections: **Without `--control`** (the agents switch and Preferences › AI Integrations), **Methods**, **Engine commands**, **Background jobs**, **MCP bridge**, **Headless server**, **Transport limits**, **Preferences**, **Snapping**, **Frame Tool controls**, and **Camera Raw dialog**. Relative links inside the downloaded document refer to upstream documentation; resolve those against `https://github.com/storytold/photocraft/blob/main/docs/` when needed. If installed behavior differs, inspect the installed command registry and consult the source rather than inventing parameters.
 
 ## Select the session
 
 - For a user's open document or visible application, use an existing PhotoCraft MCP bridge or authenticated desktop control session. A headless session has separate documents and cannot edit the user's live window.
-- For unattended processing of files, use headless MCP (`photocraft-cli mcp`) or the persistent JSON-lines server (`photocraft-cli serve`).
+- For unattended processing of files, use headless MCP (`photocraft-cli mcp --headless`) or the persistent JSON-lines server (`photocraft-cli serve`). Plain `photocraft-cli mcp` without `--headless` now bridges to the open desktop window when the person lets agents use the app, and runs headless only otherwise.
 - Discover available PhotoCraft tools and installed executables first. If the required connection or executable is missing, report the concrete prerequisite; creating this skill does not install PhotoCraft or register an MCP server.
 
 When launching a needed desktop session, adapt this example to the actual executable, available port, private token file, and task directories:
