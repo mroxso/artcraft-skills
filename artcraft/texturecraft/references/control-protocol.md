@@ -325,8 +325,9 @@ of a second.
 A `.mcmat` portable material (MaterialCraft's format, read here by `formats::mcmat`; the manifest is
 documented in MaterialCraft's `docs/control-protocol.md` § Portable materials) becomes a fill layer
 whose channel sources are its cooked maps and whose `link` (shown by `project.inspect`) holds the
-graph's exposed inputs, presets and image inputs. The apps share the format and the command line,
-not code.
+graph's exposed inputs, presets and image inputs. Both apps use the shared `craft-mcmat` container.
+Versions 1 and 2 are accepted; version 1 contains a legacy JSON `.mcraft` source that current
+MaterialCraft cannot reopen, so its cooked maps remain usable but re-cooking needs a compatible older version.
 
 | Command | Params |
 |---|---|
@@ -334,9 +335,9 @@ not code.
 | `material.link.set` | `{layer?, id, value, cook?: true}`: a number, `[..]`, a bool, `"#rrggbb"` or a typed `{"t", "v"}`; re-cooks unless `cook: false` |
 | `material.link.preset` | `{layer?, name, cook?: true}` |
 | `material.link.cook` | `{layer?}`: re-cook at the texture set's resolution with its baked mesh maps (after a bake or a resize) |
-| `material.link.saveSource` | `{layer?, path}`: the `.mcraft` package, to open in MaterialCraft |
+| `material.link.saveSource` | `{layer?, path}`: the `.mcraft` or `.sbs` source, to open in MaterialCraft |
 
-Re-cooks run `materialcraft-cli run <package> file.exportMaterial {path, size, values, inputs}`:
+Re-cooks use `materialcraft-cli batch` to open the saved graph by name and run `file.exportMaterial` with its size, values and inputs:
 `$MATERIALCRAFT_CLI`, else `materialcraft-cli` next to the TextureCraft executable, else on `PATH`
 (the app is `$MATERIALCRAFT` / `materialcraft`). Baked maps feed graph input nodes whose identifier
 matches the map's shared id (`ambientOcclusion`, `curvature`, `thickness`, `position`,

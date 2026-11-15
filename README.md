@@ -73,7 +73,7 @@ A few skills ship extras: `solidcraft` includes a helper script (`scripts/sc.py`
 
 ## Attribution
 
-Every bundled reference is an unmodified snapshot of upstream documentation, downloaded on 2026-11-11 (`cadcraft`, `effectcraft`, `figcraft`, `filmcraft`, `gridcraft`, `lightcraft`, and `pdfcraft` on 2026-11-09, `deckcraft`, `designcraft`, and `soundcraft` on 2026-11-02, unchanged upstream since those dates). Snapshots are copyright © 2026 ArtCraft Team and the respective contributors, distributed under the upstream MIT license reproduced in each skill's `references/LICENSE-MIT`. Relative documentation links inside a snapshot resolve against the upstream repository's `docs/` directory.
+Every bundled reference is an unmodified snapshot of upstream documentation, downloaded on 2026-11-15 (`anicraft` and `materialcraft` on 2026-11-11, `cadcraft`, `filmcraft`, `gridcraft`, `lightcraft`, and `pdfcraft` on 2026-11-09, unchanged upstream since those dates; `solidcraft`'s `render-jobs.md` is unchanged since 2026-11-11). Snapshots are copyright © 2026 ArtCraft Team and the respective contributors, distributed under the upstream MIT license reproduced in each skill's `references/LICENSE-MIT`. Relative documentation links inside a snapshot resolve against the upstream repository's `docs/` directory.
 
 | Skill | Upstream source | Snapshotted files |
 | --- | --- | --- |

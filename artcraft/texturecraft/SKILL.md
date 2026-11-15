@@ -9,7 +9,7 @@ Operate TextureCraft through its structured automation interface. Preserve the u
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-11.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-15.
 
 Source: [TextureCraft control protocol](https://raw.githubusercontent.com/storytold/texturecraft/refs/heads/main/docs/control-protocol.md).
 
@@ -47,7 +47,7 @@ Headless file access is workspace-scoped by launch-time roots (`--read-root` / `
 
 - Projects: `project_open {path}` (`.tcraft` or a mesh file) / `project_save {path?}`; in bridge mode `project_save` without a path invokes File › Save. Meshes: `mesh_import {path, resolution?}` (glTF/GLB, FBX, COLLADA, USD, Alembic, OBJ, PLY, STL), `mesh_reimport`, `mesh_export {path, format?}` (textured obj, glb, usd).
 - Resources and baking: `resource_import {path}` embeds an image (for `layer.add.image` or `tool.stencil`, or as a mesh map via `textureSet.meshMap.set`); `bake_mesh_add {path, cage?}` adds a high-poly mesh; `bake {resolution?, maps?, cpu?}` bakes mesh maps, on the GPU when there is one.
-- Materials: `material_save {path, layer?, name?}` writes a `.tcmat` smart material; `material_load {path}` reads `.tcmat`, a MaterialCraft `.mcmat` or `.mcraft` package; drive `.mcmat` inputs with `material.link.set` / `material.link.preset` / `material.link.cook` (re-cooks call `materialcraft-cli`, found via `$MATERIALCRAFT_CLI` or next to the executable).
+- Materials: `material_save {path, layer?, name?}` writes a `.tcmat` smart material; `material_load {path}` reads `.tcmat`, a MaterialCraft `.mcmat` or `.mcraft` package; drive `.mcmat` inputs with `material.link.set` / `material.link.preset` / `material.link.cook` (re-cooks run `materialcraft-cli batch`, found via `$MATERIALCRAFT_CLI` or next to the executable).
 - Textures: `textures_export {dir, preset?, ts?, format?, padding?, size?}` writes engine-ready maps (PNG, JPEG, TGA, TIFF, BMP, WEBP, EXR, HDR at 8, 16 or 32 bits); CLI: `texturecraft-cli export model.tcraft out/ --preset "Unreal Engine (Packed)"`.
 - Report successful saves and exports with the exact output path and format. Do not overwrite the user's source project unless asked; save a copy under a new name.
 
