@@ -9,7 +9,7 @@ Operate TextureCraft through its structured automation interface. Preserve the u
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-15.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-25.
 
 Source: [TextureCraft control protocol](https://raw.githubusercontent.com/storytold/texturecraft/refs/heads/main/docs/control-protocol.md).
 

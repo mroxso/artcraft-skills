@@ -24,10 +24,10 @@ AI agent skills for the ArtCraft software suite. Each skill teaches a coding age
 | [pdfcraft](artcraft/pdfcraft/SKILL.md) | [PdfCraft](https://github.com/storytold/pdfcraft) | The headless MCP server, the opt-in desktop control channel, command discovery, read/write roots, batch conversion and OCR, and output verification. |
 | [solidcraft](artcraft/solidcraft/SKILL.md) | [SolidCraft](https://github.com/tangency-labs/solidcraft) | Executable discovery, watchable and headless sessions, token authentication, command discovery, sketch and feature editing, numerical verification, rendering, and export. |
 | [soundcraft](artcraft/soundcraft/SKILL.md) | [SoundCraft](https://github.com/storytold/soundcraft) | The control channel, CLI, and MCP surfaces, session inspection, track and clip targeting, time references, synthetic input ordering, and screenshot verification. |
-| [wordcraft](artcraft/wordcraft/SKILL.md) | [WordCraft](https://github.com/storytold/wordcraft) | Key authentication, multiple open documents, command discovery, text and style targeting, queued input, native printing, and page render verification. |
+| [wordcraft](artcraft/wordcraft/SKILL.md) | [WordCraft](https://github.com/storytold/wordcraft) | Token authentication, multiple open documents, command discovery, text and style targeting, queued input, native printing, and page render verification. |
 | [materialcraft](artcraft/materialcraft/SKILL.md) | [MaterialCraft](https://github.com/storytold/materialcraft) | Live and headless sessions, command discovery, node graph editing, function graphs, view verification, texture export, and portable `.mcmat` materials. |
 | [texturecraft](artcraft/texturecraft/SKILL.md) | [TextureCraft](https://github.com/storytold/texturecraft) | Live and headless sessions, command discovery, texture sets and layer stacks, painting strokes, mesh-map baking, previews, texture export, and `.tcmat`/`.mcmat` materials. |
-| [anicraft](artcraft/anicraft/SKILL.md) | [AniCraft](https://github.com/storytold/anicraft) | MCP and headless CLI sessions, command discovery, stage and timeline editing, keyframes and tweens, symbols and library, frame rendering, and export verification. |
+| [anicraft](artcraft/anicraft/SKILL.md) | [AniCraft](https://github.com/storytold/anicraft) | MCP and headless CLI sessions with automation roots, command discovery, stage and timeline editing, keyframes and tweens, symbols and library, frame rendering, and export verification. |
 
 ## Install
 
@@ -73,7 +73,7 @@ A few skills ship extras: `solidcraft` includes a helper script (`scripts/sc.py`
 
 ## Attribution
 
-Every bundled reference is an unmodified snapshot of upstream documentation, downloaded on 2026-11-15 (`anicraft` and `materialcraft` on 2026-11-11, `cadcraft`, `filmcraft`, `gridcraft`, `lightcraft`, and `pdfcraft` on 2026-11-09, unchanged upstream since those dates; `solidcraft`'s `render-jobs.md` is unchanged since 2026-11-11). Snapshots are copyright © 2026 ArtCraft Team and the respective contributors, distributed under the upstream MIT license reproduced in each skill's `references/LICENSE-MIT`. Relative documentation links inside a snapshot resolve against the upstream repository's `docs/` directory.
+Every bundled reference is an unmodified snapshot of upstream documentation, downloaded on 2026-11-25 (`deckcraft` and `effectcraft` on 2026-11-15, `gridcraft` and `pdfcraft` on 2026-11-09, unchanged upstream since those dates; `solidcraft`'s `render-jobs.md` is unchanged since 2026-11-11). Snapshots are copyright © 2026 ArtCraft Team and the respective contributors, distributed under the upstream MIT license reproduced in each skill's `references/LICENSE-MIT`. Relative documentation links inside a snapshot resolve against the upstream repository's `docs/` directory.
 
 | Skill | Upstream source | Snapshotted files |
 | --- | --- | --- |

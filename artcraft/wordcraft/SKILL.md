@@ -9,17 +9,17 @@ Operate WordCraft through its structured automation interface. Preserve the user
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-15.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-25.
 
 Source: [WordCraft control protocol](https://raw.githubusercontent.com/storytold/wordcraft/refs/heads/main/docs/control-protocol.md). The documentation is distributed under the [bundled MIT license](references/LICENSE-MIT). Relative links inside the snapshot (e.g. `mcp.md`, `recovery.md`) resolve against `https://github.com/storytold/wordcraft/blob/main/docs/`. Discover command ids and parameter docs through `engine.commands` instead of inventing them.
 
 ## Select the session and authenticate
 
-Start the app with a control port: `wordcraft --control 7981` (or `WORDCRAFT_CONTROL_PORT=7981`); it listens on `127.0.0.1` only. Every request needs the window's key: a random hex value the app writes to `<settings>/control-key.local-<port>` (macOS `~/Library/Application Support/WordCraft`, Linux `$XDG_CONFIG_HOME/wordcraft`, Windows `%APPDATA%\WordCraft`; `WORDCRAFT_PROFILE_DIR` isolates the profile). Send it as top-level `"key"` on every request, or once per connection with `{"method": "auth", "key": "…"}`. A missing or wrong key answers `unauthorized` and closes the connection; an unauthenticated connection is dropped after 30 s. `wordcraft-cli mcp --connect` reads the key itself (or `WORDCRAFT_CONTROL_KEY`) and only sends it to `127.0.0.1`; to drive a remote app, forward the port and set the key explicitly. Discover executables and running sessions first; this skill does not install WordCraft or configure MCP servers.
+Start the app with a control port: `wordcraft --control 7981` (or `WORDCRAFT_CONTROL_PORT=7981`); it listens on `127.0.0.1` only. Each connection authenticates once with the window's token: a random hex value the app writes to `<settings>/control-key.local-<port>` (macOS `~/Library/Application Support/WordCraft`, Linux `$XDG_CONFIG_HOME/wordcraft`, Windows `%APPDATA%\WordCraft`; `WORDCRAFT_PROFILE_DIR` isolates the profile), or a token you supply with `--control-token`/`--control-token-file` (`WORDCRAFT_CONTROL_TOKEN`/`WORDCRAFT_CONTROL_TOKEN_FILE`). Send `{"method": "auth", "params": {"token": "…"}}` as the first line of every connection; later requests carry no token. Anything else before authentication answers `authentication required` and closes the connection; an unauthenticated connection is dropped after 10 s, and at most 16 connections are served at once. `wordcraft-cli mcp --connect` is refused for now, until the app confines this channel to automation roots; when it returns it reads the token itself (or `WORDCRAFT_CONTROL_TOKEN`) and only sends it to `127.0.0.1`. Discover executables and running sessions first; this skill does not install WordCraft or configure MCP servers.
 
 ## Transport
 
-Send one JSON object per line; each gets one reply line, matched by `id`; check `ok`. A failed command leaves the document unchanged. A non-JSON line gets one error reply and closes the connection; lines over 1 MiB are refused the same way. Any method name that is a command id works directly (`{"method": "format.bold"}`).
+Authenticate first (above), then send one JSON object per line; each gets one reply line, matched by `id`; check `ok`. A failed command leaves the document unchanged. After authentication, a non-JSON line gets a `bad JSON` error and the connection stays open; lines over 1 MiB are refused with an error and close the connection. Any method name that is a command id works directly (`{"method": "format.bold"}`).
 
 ## Documents and targeting
 

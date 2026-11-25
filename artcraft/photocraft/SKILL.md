@@ -9,7 +9,7 @@ Operate PhotoCraft through its structured automation interface. Preserve the use
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-15.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-25.
 
 Source: [PhotoCraft control protocol](https://raw.githubusercontent.com/storytold/photocraft/refs/heads/main/docs/control-protocol.md).
 
@@ -49,7 +49,7 @@ Prefer editable layers, adjustments, and masks when they suit the user's request
 
 ## File access and output
 
-Read and write roots are separate launch-time capabilities. Use task-scoped roots and forward-slash relative paths within them; the output parent directory must exist. Do not bypass rejected paths by switching to ambient filesystem commands.
+Read and write roots are separate launch-time capabilities. Use task-scoped roots and forward-slash relative paths within them; the output parent directory must exist. A root left unset (and named by no flag) defaults to the shared agent folder, `Documents/ArtCraft/Agents/PhotoCraft`, created when first used; giving one folder as both read and write root shares a single capability. MCP `agent_folders` reports which folders an agent may use. Do not bypass rejected paths by switching to ambient filesystem commands.
 
 - Desktop control: `app.open` / `app.save`.
 - MCP: `doc_open` / `doc_save` / `doc_export` (bridge maps these to desktop methods).
