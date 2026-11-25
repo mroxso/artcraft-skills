@@ -23,8 +23,9 @@ Agents drive MaterialCraft three ways, all dispatching the same engine commands:
    engine-command authority, including host file access.
    Set `MATERIALCRAFT_NO_PREFS=1` for scripted runs so the user's layout is left alone.
 
-Every SBS save writes MaterialCraft's workspace release version to `updaterVersion`, including
-when resaving a file from an older release. `formatVersion` identifies the SBS schema separately.
+The first SBS save sets `formatVersion` and `updaterVersion` to MaterialCraft's workspace release
+version. Later saves preserve the document's original `formatVersion` and refresh `updaterVersion`
+to the saving application's release version. Save As and archive packaging retain that baseline too.
 
 ## Methods
 
@@ -37,8 +38,8 @@ when resaving a file from an older release. `formatVersion` identifies the SBS s
 | `session.inspect` | all | package, graphs, the open graph's nodes (def, params, bindings, base, ports, cook error/size/mean/ms), wires, frames, comments, pins, exposed inputs, views, history |
 | `package.open {path}` / `package.save {path?}` | headless | workspace-scoped package I/O |
 | `bitmap.import {path, name?}` | headless | embed an image as a resource |
-| `outputs.export {dir, format?, pattern?, depth?, size?, graph?, outputs?, colorSpaces?}` | headless | cook at full size and write the outputs: `size` is the larger side or `[width, height]`, `outputs` lists identifiers (default all), `colorSpaces` maps identifiers to `srgb`, `linear` or `raw` (default by usage) |
-| `material.export {path, graph?, size?, values?}` | headless | write a portable `.mcmat` below the write root |
+| `outputs.export {dir, format?, pattern?, depth?, size?, graph?, outputs?, colorSpaces?, profile?, preset?, values?, inputs?, normalFormat?, displacementScale?}` | headless | cook at full size and write the outputs: `size` is the larger side or `[width, height]`, `outputs` lists identifiers (default all), `colorSpaces` maps identifiers to `srgb`, `linear` or `raw` (default by usage) |
+| `material.export {path, graph?}` | headless | write a portable `.mcmat` below the write root |
 | `render {view?, width?, height?, yaw?, pitch?, scene?, node?, port?, full?, tiling?, hq?, displacement?}` | headless | PNG (base64) of the 3D view or of one node; `hq` is the beauty render (displaced mesh, ray-traced AO, shadowed key light, 3×3 supersampling), `displacement` its depth in scene radii |
 | `ui.inspect` | app | UI state, the graph view rectangle, every node's screen rectangle, every port's identifier, display label and screen position, fps, toasts |
 | `ui.menu.list` / `ui.menu.invoke {id}` | app | the menu catalog; behave like a click. While a dialog or prompt is open (an app dialog, the unsaved-changes prompt, a file dialog, or the update prompt or result window; not Home, the Shortcuts list or the notice that an update installed), an item lists as disabled and `ui.menu.invoke` returns an error. When a file dialog is the only one open, the items that show a file dialog stay enabled and bring it forward |
@@ -88,7 +89,7 @@ Types: `move`, `down`, `up`, `click`, `doubleClick`, `drag`, `scroll`, `key` (eg
 | `graph.function.variables` | `{id, target?: FunctionGraphTarget}` returns ordered suggestions matching a Get node's type and caller scope; typed custom names remain supported |
 | `session.environment` | `{timeSeconds?, uvTile?: [int, int], normalFormat?: int}` updates host evaluation values without modifying the package; `{}` reads them; defaults are zero and the normal-format code is passed through |
 | `graph.context` | `{physicalSize?: [x, y, z], pixelRatio?: 0\|1, tiling?: [horizontal, vertical]}` edits material-graph metadata with undo; `{}` reads it; reusable functions receive their caller's context |
-| `file.new` | `{template?, name?, size?}`; templates from `graph.templates` (`empty`, `pbr`, `bricks`, `stone_tiles`, `wood`, `rusty_metal`, `fabric`, `ground`) |
+| `file.new` | `{template?, name?, folder?, kind?, size?, height?, document?, newPackage?}`. Use `graph.templates` for the supported material templates. `size` is the width in pixels and `height` defaults to it (powers of two, 16 to 8192). `document` selects an open package. `newPackage: true` creates a new untitled package and cannot be combined with `document` or a nonempty `folder` |
 | `graph.node.edit` | `{}` resolves the selected FX-Map, processor or graph instance to `{kind, node, parameter?, graph?, document?, path?}`; use `ui.menu.invoke` to open its reference in the graph panel |
 | `graph.node.info` | `{id}` returns `{text}` describing a main-graph node without changing the document or node clipboard |
 | `graph.instance.add` | `{document, graph, function?: FunctionGraphTarget, at?, snapToGrid?}` adds a linked graph instance from an open package; requires a source output and rejects dependency cycles |
@@ -115,7 +116,16 @@ Types: `move`, `down`, `up`, `click`, `doubleClick`, `drag`, `scroll`, `key` (eg
 | `graph.node.reset` | `{id?, param?, base?}` removes the driver and restores defaults; omit `param` to reset the selected parameter section |
 | `graph.preset.save` / `.apply` / `.delete` | `{name}`: store, restore or remove the current input values |
 | `graph.createFromSelection` | `{name?, ids?}`: move nodes into a sub-graph and replace them with an instance |
-| `view.2d` / `view.3d` | which node the 2D view shows, channel, tiling, histogram; scene, environment, camera, tiling, `heightScale` (how far the height output raises the mesh, in mesh radii) and `heightLevel` (the height that stays on the surface; 0 = the relief rises out of it), `normalYFlip` (interpret DirectX normal maps; default false/OpenGL), `transparency` (see through where the alpha is below one: the opacity output, else the base color's alpha), `alphaView` (show the alpha channel) |
+| `view.2d` | `{node?, port?}` picks what the 2D view shows. Display: `channel` (`rgba`\|`r`\|`g`\|`b`\|`a`), `tiled` (repeat the image across the view), `checkerboard` (behind transparent pixels, else black), `premultiplied` (colors already multiplied by alpha), `srgb` (values are sRGB encoded, the default; false shows them as linear light), `physicalSize` (proportions of the graph's physical size), `maintainZoom` (keep the zoom when the image size changes, the default; false keeps the image's size on screen), `uv` (overlay the UV layout of the 3D view's mesh), `background` (an image file drawn behind transparent pixels, or null). Information panel: `information`, `sampler` (`[x, y]` in 0..1 from the top-left corner, or null). Histogram panel: `histogram`, `histogramChannel` (`luminance`\|`red`\|`green`\|`blue`\|`rgb`\|`alpha`), `histogramBits` (8\|16\|32; 0 follows the image), `histogramSqrt`, `histogramSelection` (`[low, high]` in 0..1, or null). A rejected parameter changes nothing; the result and `session.inspect` (`view2d`) hold every setting. Pan and zoom are UI state: `ui.set {imageCamera: {zoom, offset, fit}}` |
+| `view.3d` | Every setting of the 3D view, each optional; the reply is the whole view. See [3D view settings](#3d-view-settings) |
+| `view.3d.viewpoint` | `{name}`: `default`, `front`, `right`, `back`, `left`, `top` or `bottom` turns the camera to look from there, at the same distance |
+| `view.3d.frame` | `{}` centers the mesh and moves the camera to where all of it is in view |
+| `view.3d.resetCamera` | `{properties?}` puts the camera back where a new view has it; with `properties` also the lens, projection, background, resolution and clip planes |
+| `view.3d.resetLights`, `view.3d.resetEnvironment` | `{}` the lights, or the environment, of a new view |
+| `view.3d.resetMaterial` | `{common?}` puts the material model back to its defaults; with `common` only the parameters several shaders share, and the shader stays. The assigned images stay |
+| `view.3d.saveDefault` | `{}` makes the current view the one `view.3d.reset` and a new package start from. The app keeps it in its preferences |
+| `view.3d.saveState`, `view.3d.loadState` | `{path}` writes the view's settings to a `.mcview` file (JSON); `{path, mesh?}` applies one, switching to its mesh only with `mesh`. Numbers out of range are clamped; a file that is not a state changes nothing |
+| `view.3d.reset` | `{}` back to the saved default view, or the built-in one |
 | `view.3d.loadMesh` | `{path}` shows an OBJ, glTF or GLB mesh (scene `custom`) |
 | `library.list` | `{filter?, category?}`: every node with ports and parameters |
 | `library.tree` | `{filter?, category? (Top or Top/Sub), canvas? (material\|function\|pattern)}`: the Library panel's category tree and its entries. Each entry has `id`, `label`, `category`, `type` (`node`, `comment`, `frame`, `pin`, `instance`, `operation`, `functionInstance`, `pattern`, `bitmap`), the `canvas` that takes it (`any` for shared graph items), `missing` when MaterialCraft lacks the library package it needs, and `warning` when it can be added but is incomplete |
@@ -126,7 +136,7 @@ Types: `move`, `down`, `up`, `click`, `doubleClick`, `drag`, `scroll`, `key` (eg
 ## Node library
 
 Every `.sbs` file in the library folder (`assets/sbs`, or `MATERIALCRAFT_SBS_DIR`; installed and
-browser builds use the bundled `functions.sbs`) loads once per process, and its graphs join every
+browser builds embed all library packages and shared resources) loads once per process, and its graphs join every
 session's dependencies. Function graphs are listed under Functions using recognized Tags, then
 Category or package-path fallbacks (`Functions/colorValues` → Color, `Functions/easings` → Easings).
 Other graphs use the category in their attributes. A package whose graphs group nodes in titled frames lays the library
@@ -175,6 +185,46 @@ Source-file watching is not implemented yet. The global Function Library reads `
 References currently identify graphs by name; renaming an external source graph requires recreating
 its instances. Save As creates a separate file and does not redirect references to the original.
 
+## 3D view settings
+
+`view.3d` takes any of the settings below and leaves the rest as they are. A number out of range
+is held at the nearest limit; an unknown name (a scene, a shader, a material parameter) is an error
+and changes nothing. One mesh unit is 50 scene units; a built-in mesh is 100 across, one meter.
+
+| Group | Parameters |
+|---|---|
+| Scene | `scene` (`cube`, `cylinder`, `hollow_box`, `inner_box`, `plane`, `plane_hi_res`, `sphere`, `cloth`, `material_ball`, `rounded_cube`, `rounded_cylinder`, `sphere_2_tiles`, `torus`, or `custom` after `view.3d.loadMesh`) |
+| Camera | `yaw`, `pitch` (degrees), `distance` (mesh radii), `target` (`[x, y, z]` in mesh radii from the center, within the pan limit preference), `focalLength` (mm on a 36 × 24 frame, 0.01 to 100), `projection` (`perspective`, `orthographic`), `background` (`studio`: a gray backdrop that darkens toward the corners, the default; `color`; `environment`), `backgroundColor` (linear `[r, g, b]`, for `color`), `autoClip`, `nearClip`, `farClip` (scene units) |
+| Render resolution | `overrideResolution`, `viewportResolution` (start from the view's size), `renderResolution` (`[width, height]`, 16 to 4096), `renderScale` (25, 50, 100 or 200 percent). A resolution of its own is shown fitted in the view, with bars around it |
+| Environment | `environment` (`studio`, `sunset`, `overcast`, `night`), `envEnabled` (it lights the scene), `envRotation` (degrees), `exposure` (stops, -10 to 10) |
+| Lights | `ambient` (`{enabled?, color?}`), `light1`, `light2` (`{enabled?, color?, intensity?, yaw?, pitch?, distance?}`: a point light that orbits the scene's center), `shadows` (the point lights cast them) |
+| Display | `wireframe`, `backfaceCulling`, `axis` (the world axes with a scale), `grid`, `boundingBox`, `lightHelpers`, `vertexTangentSpace`, `sceneStats`, `resolution`, `fps` |
+| Material model | `shader` (`openPbr`, `blinn`, `lambert`, `meshInfo`, `metallicRoughness`, `metallicRoughnessCoated`, `metallicRoughnessSss`, `specularGlossiness`, `unlit`), `technique` (`tessellation`, `parallax`: how the height output shows), `meshInfo` (`normal`, `tangent`, `binormal`, `uv`, `uvTile`, `vertexColor`, `position`) |
+| Material values | `material` (`{parameter: number, [r, g, b] or bool}`; `null` puts a parameter back to its default), `channels` (`{parameter: bool}` switches a parameter, and the image a graph output gives it, on or off) |
+| UVs | `tiling`, `uvScale` (`[u, v]`), `physicalSize` (size the material by the physical size of its graph: a graph a meter wide covers a built-in mesh once) |
+| Height | `displacement` (raise the mesh), `heightScale` (mesh radii, 0 to 0.5), `heightLevel` (the height that stays on the surface; 0 = the relief rises out of it), `tessellation` (1 to 8), `normalYFlip` (DirectX normal maps; default false, OpenGL) |
+| Renderer | `samples` (rays per pixel side of a resting frame, 1 to 4), `ambientOcclusion` (rays, 0 to 32), `transparency` (see through where the alpha is below one), `alphaView` (show the alpha channel), `viewChannels` (`rgb`, `r`, `g`, `b`), `colorSpace` (`aces`, `srgb`) |
+
+The material parameters follow the public OpenPBR Surface model: `baseWeight`, `baseColor`,
+`baseMetalness`, `baseDiffuseRoughness`, `specularWeight`, `specularColor`, `specularRoughness`,
+`specularAnisotropy`, `specularIor`, `transmissionWeight`, `transmissionColor`, `subsurfaceWeight`,
+`subsurfaceColor`, `subsurfaceRadiusScale`, `coatWeight`, `coatColor`, `coatRoughness`, `coatIor`,
+`coatDarkening`, `fuzzWeight`, `fuzzColor`, `fuzzRoughness`, `emissionLuminance`, `emissionColor`,
+`thinFilmWeight`, `thinFilmThickness`, `thinFilmIor`, `geometryOpacity`, `geometryNormal`,
+`ambientOcclusion` and `height`; the glossy shaders add `specular` and `glossiness`. Each shader
+lists the parameters it shades with. `transmissionDepth`, the dispersion values, `subsurfaceRadius`,
+`subsurfaceAnisotropy`, `coatAnisotropy`, `geometryThinWalled` and the Phong tessellation values are
+kept with the state, but the CPU renderer does not show them.
+
+In the app the view's menus (Scene, Materials, Lights, Camera, Environment, Display, Renderer) and
+its tool strip run these commands, and Edit properties shows the material, the lights, the camera,
+the environment or the renderer in the Properties panel. Over the view: drag orbits, the middle
+button (or Alt+drag, or Ctrl with the right button) pans, the wheel and the right button zoom,
+Shift+drag turns the environment, Ctrl+Shift+drag (or the Light tool) moves the first point light,
+Shift+click (or the Select tool) selects the mesh; F frames, R puts the camera back, Shift+R also
+puts its properties back (with the Light tool: the light's position), Alt+S saves the render, Alt+C
+copies it, C and L pick the Camera and Light tools.
+
 ## 3D material assignment
 
 `view.3d.outputs {graph?, reset?}` applies a material graph's image outputs by their usage.
@@ -192,7 +242,7 @@ update when that source changes, and remain active while editing a Function Grap
 Opening a material graph automatically previews its output usages. Selecting or previewing a node
 in 2D does not reassign the 3D material. Dragging a graph from Explorer onto the 3D view applies its outputs without opening the graph.
 Canvas and Explorer context menus use the same assignment
-commands; the 3D View's Material menu lists its channel sources. A Height-only output affects height
+commands; the 3D view's material properties mark each parameter a graph output feeds. A Height-only output affects height
 sampling, not Base Color; assign that image to `baseColor` to inspect its grayscale pattern on the mesh.
 
 `session.inspect.material3d` reports assignments and resolved channels, including source graph/node/port,
@@ -300,42 +350,41 @@ includes frame, comment and pin rectangles for synthetic input.
 
 ## Portable materials (TextureCraft)
 
-A `.mcmat` portable material is a zip: `material.json` (manifest), `maps/<usage>.png` and
-`source.sbs` (the package). TextureCraft applies it as a fill layer and keeps the exposed inputs
-editable, re-cooking through `materialcraft-cli`. The format is a convention the two apps share;
-each has its own reader and writer (`crates/formats/src/material.rs` here), so keep them in step.
+A v3 `.mcmat` publishes a single material graph for procedural cooking. Choose **Export material… → MCMAT → Root graph** or give the graph's full SBS path to the CLI.
 
-```json
-{ "format": "craft-material", "version": 2, "name": "Brick wall", "graph": "Brick_wall", "size": [2048, 2048],
-  "maps": [{"usage": "baseColor", "file": "maps/baseColor.png", "colorSpace": "srgb"}],
-  "parameters": [{"id": "wear", "label": "Wear", "default": {"t": "float", "v": 0.5}, "min": 0, "max": 1,
-                  "value": {"t": "float", "v": 0.8}}],
-  "inputs": [{"identifier": "curvature", "kind": "gray"}],
-  "presets": [{"name": "Worn", "values": {"wear": {"t": "float", "v": 1.0}}}],
-  "source": "source.sbs" }
+The commands below assume `surfaces.sbs` has a connected material graph at `Materials/Oak`, a scalar control named `wear`, a preset named `Worn`, and an image input named `curvature`. Supply a mesh map at `mesh/curvature.exr`.
+
+```sh
+materialcraft-cli publish surfaces.sbs Oak.mcmat --graph Materials/Oak
+materialcraft-cli info Oak.mcmat
+materialcraft-cli cook Oak.mcmat --size 1024 --set wear=0.2
+materialcraft-cli export Oak.mcmat build/oak --profile materialx --size 2048 \
+  --preset Worn --set wear=0.7 --input curvature=mesh/curvature.exr
 ```
 
-- Usages come from the shared `ComponentUsage` catalog (the first output of each, excluding
-  `any`). The catalog includes PBR, diffuse/specular, coat, sheen, scattering and user channels.
-  Color maps are 8-bit sRGB PNGs; data maps are 16-bit linear. Each map records its color space.
-  Additional usage identifiers do not change the manifest version; consumers may ignore usages
-  they do not support. Normals are tangent space, OpenGL (Y+); height is 0..1 with 0.5 at the surface.
-  The 3D preview supports base color (including `diffuse`), normal, roughness, metallic, height,
-  ambient occlusion, emissive and opacity; other usages remain available for SBS and exports.
-- Parameters are the exposed inputs other apps can set (float, float2-4, int, int2, bool, color,
-  enum), values in the typed form `{"t", "v"}`; colors are linear RGBA.
-- Inputs are the graph's input nodes. Mesh maps feed them by identifier: `ambientOcclusion`,
-  `curvature`, `thickness`, `position`, `worldNormal`, `normal`, `height`, `id`, `bentNormal`,
-  `opacity`, `colorMap`, `worldDirection`.
-- Readers ignore unknown fields and require manifest `version` 2.
+The ZIP contains a version marker (`material.json` with `{"version":3}`), a DEFLATE-compressed `source.sbs`, and the source assets its graphs reference under `resources/`. The sole graph at the root of the SBS document is the entry. Reachable helper graphs and functions have local paths under `Dependencies/`. Republish v1 and v2 archives from the original authoring project.
+
+`info` reads the entry's path, dimensions, supported resolutions, typed defaults, saved values, presets, image inputs and output usages. A cook starts from the saved values, applies the named preset, then applies each explicit override. `--set` accepts numbers, booleans, JSON vectors, colors and typed values such as `{"t":"float","v":0.7}`. The size is the longer side in pixels. The graph retains its aspect ratio within the supported powers of two from 16 to 8192. Use `--size 1024x512` to choose both sides. An omitted size uses the authored dimensions. An explicit size also sets the final dimensions of outputs fed by fixed-size nodes.
+
+TextureCraft requests `--profile maps` at its texture set's resolution and supplies mesh maps through repeated `--input identifier=path`. Common identifiers include `ambientOcclusion`, `curvature`, `thickness`, `position`, `worldNormal`, `normal`, `height`, `id`, `bentNormal`, `opacity`, `colorMap` and `worldDirection`. An image override uses the published preview binding’s color space when present. Otherwise the input’s declared usage determines the transfer, with the identifier as a fallback for untagged inputs. The JSON report lists each map's identifier, usage, filename, color space and actual dimensions.
+
+The CLI's `--graph-path` selects a literal SBS path, including a numeric name, while `--graph` retains numeric-index shorthand.
+
+The `materialx` profile writes `material.mtlx` with relative texture paths and an OpenPBR surface. Color textures default to sRGB PNG, data textures to linear 16-bit PNG, and out-of-range values to floating-point EXR. Both bake profiles write tangent-space Y+ normals. A directly connected Normal node supplies its evaluated convention, including through routing dots. Other normal sources default to Y+. Use `--normal-format directx` for a Y− source or `--normal-format opengl` for Y+. OpenPBR scalar and normal inputs require linear data. Height becomes signed EXR displacement in scene units using `(height - 0.5) × displacementScale`. The CLI accepts `--displacement-scale`. MaterialX texture filenames include a hash of the output name and bytes. Re-export writes the document last and keeps earlier texture versions, so a failed export leaves the previous material usable. Outputs without an OpenPBR connection are written alongside the document and listed in `unmapped`.
+
+The named profiles choose their own file names and formats. Use `--format` and `--pattern` with plain image export. `--normal-format` applies to both named profiles, and `--displacement-scale` applies to MaterialX. Profile EXR files are linear. Leave the color space automatic, or choose linear or raw explicitly.
 
 | Command | Params |
 |---|---|
-| `file.exportMaterial` | `{path, graph?, size? (px), values? {input: value}, inputs? {identifier: image path}}`: cook and write a `.mcmat`. TextureCraft runs `materialcraft-cli run source.sbs file.exportMaterial {...}` to re-cook at its texture set's resolution with its own values and baked mesh maps. In the app, Export material... (and `ui.menu.invoke file.exportMaterial`) opens the Export window on its MCMAT tab, whose #190 options wait for the new exporter |
+| `file.exportMaterial` | `{path, graph?}` publishes the chosen source graph by SBS path or index. The default is the open graph. |
+| `material.info` | `{graph?}` reads the material interface. |
+| `material.cook` | `{graph?, size?, preset?, values?, inputs?}` returns output dimensions and mean values. |
+| `file.export` | `{dir, graph?, profile?, size?, preset?, values?, inputs?, normalFormat?, displacementScale?}` bakes images using the selected profile. |
 | `file.sendToTextureCraft` | `{graph?}`: export into TextureCraft's library folder (`Documents/TextureCraft/library`), where its shelf lists it |
 | `graph.input.bind` / `graph.input.unbind` | `{identifier, resource? \| path?, linear?}` / `{identifier}`: a preview image for an input node (a mesh map exported from TextureCraft), saved in the package |
 | `file.open` | `{path}` opens `.sbs` XML or an independent `.mcraft` ZIP. Also opens a `.mcmat`'s source without a save path. Returns `warnings` for unsupported content; also in `session.inspect` as `package.warnings` |
 | `file.save` / `file.saveAs` / `file.saveCopyAs` | `{path?}` / `{path}` / `{path}`: `.sbs` writes XML and adjacent `resources/`; `.mcraft` writes a ZIP containing `package.sbs` and `resources/`. Unrecognized extensions get `.sbs` appended. Save Copy preserves the active path and modified state |
+| `file.saveAll` | Native only. `{}` saves every modified package that has a local file and returns `{saved, withoutFile, failed}`. `saved` lists paths, `withoutFile` lists packages that need `file.saveAs`, and `failed` lists `{package, error}` entries. The original package stays active |
 | `file.importBitmap` / `file.importVector` | `{path, name?, folder?}` imports a supported bitmap / SVG into Resources or a subfolder without adding a node. Unsaved imports and their original bytes participate in undo. `session.inspect` reports resource name, folder, file, byte count and missing status |
 | `graph.resource.add` | `{resource, document?, at?}` places a resource from the source document on the active material graph. Cross-document drops copy the asset; resource and node creation undo together |
 | `folder.properties` / `folder.attributes` | `{folder, document?}` reads Identifier/Description; add `identifier?` and/or `description?` to edit. Folder attributes persist as native SBS group identifiers and descriptions. The reserved root Resources identifier cannot change |
@@ -350,10 +399,10 @@ each has its own reader and writer (`crates/formats/src/material.rs` here), so k
 `ui_screenshot`, `ui_inspect`, `ui_menu_invoke`, `ui_input`. Bridged to the app, `package_save`
 without a path runs File > Save through `ui.menu.invoke`, so it returns that call's error when a
 dialog or prompt blocks it. `package_open` opens `.mcmat` files
-too, and `material_export` `{path, graph?, size?, values?}` writes one below `--write-root` (`path` is
-relative, the parent folder must exist, `values` are exposed input values). The workspace sandbox
-still refuses `file.*` commands, so a sandboxed agent exports through the tool, not `file.exportMaterial`;
-mesh-map `inputs` stay a CLI feature.
+too. `material_export` accepts `{path, graph?}` and publishes below the write root. Use
+`outputs_export` to bake variations with `profile`, `size`, `preset`, `values` and `inputs`.
+Image paths are relative to the read root and the destination is relative to the write root.
+Workspace publication limits both the combined uncompressed assets and the final archive to 256 MiB.
 
 While an FX-Map subgraph is open, `ui.inspect.subgraph` identifies its owner and selection. Canvas
 node IDs and ports refer to that embedded graph. `ui.menu.invoke` with `ui.graph.parent` returns

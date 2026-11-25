@@ -9,7 +9,7 @@ Operate MaterialCraft through its structured automation interface. Preserve the 
 
 ## Protocol reference
 
-Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-11.
+Read the relevant sections of [references/control-protocol.md](references/control-protocol.md) before constructing calls. This is the downloaded upstream protocol, captured on 2026-11-25.
 
 Source: [MaterialCraft control protocol](https://raw.githubusercontent.com/storytold/materialcraft/refs/heads/main/docs/control-protocol.md).
 
