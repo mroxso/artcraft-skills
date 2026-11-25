@@ -36,7 +36,10 @@ Start a desktop session with `--control PORT` (or `CADCRAFT_CONTROL_PORT=PORT`);
 cadcraft-cli mcp --connect 127.0.0.1:PORT
 ```
 
-Reuse a running session when possible and keep TCP on loopback. The upstream protocol documents no authentication handshake or file-access roots; if the installed version requires a token or roots, follow its `--help` output rather than guessing.
+Reuse a running session when possible and keep TCP on loopback. Every request must carry the session `token` (see the protocol reference); a request without it is refused with `unauthorized`. When the control server starts, the app writes the token to the owner-only file `cadcraft-control-<port>.token` in `$XDG_RUNTIME_DIR` (else `~/.cache`) on Linux and macOS, or `%LOCALAPPDATA%` on Windows, and logs its path at startup. `cadcraft-cli mcp --connect` reads and sends the token automatically; a direct client must read the file and add `"token": "<contents>"` to every line.
+
+- The token file is left behind when the app exits, so its presence does not prove a live server. Confirm the port answers (`ping` replies `"pong"`) and re-read the token after every app restart.
+- Connect with the literal `127.0.0.1:PORT`, not `localhost`: `localhost` may resolve to `::1`, and the bridge then sends no token.
 
 Use `CADCRAFT_CONFIG_DIR` to point the app at a private, isolated profile for automation (an explicitly empty value disables workspace reads and writes). Do not edit the user's `workspace.json` directly.
 
